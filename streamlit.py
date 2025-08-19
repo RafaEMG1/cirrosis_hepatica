@@ -380,7 +380,7 @@ st.markdown("""# 3. RFE""")
 
 # Define variables categóricas y numéricas
 categorical_features=df.select_dtypes(include=['object','category'])
-#dfcat= variables_categoricas.drop('Stage', axis=1)
+categorical_features= variables_categoricas.drop('Stage', axis=1)
 numerical_features=df.select_dtypes(include=['int64','float64'])
 
 #categorical_features = dfcat.columns.tolist()
