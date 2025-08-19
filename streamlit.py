@@ -459,8 +459,17 @@ for name in models:
     print(f"Variables seleccionadas: {selected_features[name]}")
     print(f"Nombres: {list(selected_feature_names[name])}")
 
+st.title("Evaluación de Modelos con Selección de Variables")
 
+st.sidebar.header("Configuración de columnas")
 
+categorical_features = st.sidebar.multiselect(
+    "Selecciona columnas categóricas", df_cat.drop('Stage', axis=1).columns.tolist(), default=df_cat.drop('Stage', axis=1).columns.tolist()
+)
+
+numerical_features = st.sidebar.multiselect(
+    "Selecciona columnas numéricas", df_num.columns.tolist(), default=df_num.columns.tolist()
+)
 
 
 
