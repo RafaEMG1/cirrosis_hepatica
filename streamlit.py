@@ -379,12 +379,12 @@ st.markdown("""## 2.2. PCA""")
 st.markdown("""# 3. RFE""")
 
 # Define variables categóricas y numéricas
-variables_categoricas=df.select_dtypes(include=['object','category'])
-dfcat= variables_categoricas.drop('Stage', axis=1)
-df_num=df.select_dtypes(include=['int64','float64'])
+categorical_features=df.select_dtypes(include=['object','category'])
+#dfcat= variables_categoricas.drop('Stage', axis=1)
+numerical_features=df.select_dtypes(include=['int64','float64'])
 
-categorical_features = dfcat.columns.tolist()
-numerical_features = df_num.columns.tolist()
+#categorical_features = dfcat.columns.tolist()
+#numerical_features = df_num.columns.tolist()
 
 # Separar X e y
 X = df[categorical_features + numerical_features]
