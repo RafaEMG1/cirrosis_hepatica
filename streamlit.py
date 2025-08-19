@@ -379,7 +379,7 @@ st.markdown("""## 2.2. PCA""")
 st.markdown("""# 3. RFE""")
 
 # Define variables categóricas y numéricas
-dfcat= df_cat.drop('Stage', axis=1)
+#dfcat= df_cat.drop('Stage', axis=1)
 
 categorical_features = dfcat.columns.tolist()
 numerical_features = df_num.columns.tolist()
