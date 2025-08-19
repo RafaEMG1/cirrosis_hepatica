@@ -378,19 +378,22 @@ st.markdown("""## 2.2. PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 3. RFE""")
 
+# Cargar dataset
 file_path = os.path.join(path, "liver_cirrhosis.csv")
 df = pd.read_csv(file_path)
 
-st.write(df.columns.tolist())
+# Convertir Stage a categórica
+df["Stage"] = df["Stage"].astype("category")
 
 # Definir variables categóricas y numéricas
 categorical = df.select_dtypes(include=['object','category'])
-categorical_features = categorical.columns.drop('Stage').tolist()
+categorical_features = categorical.columns.drop("Stage").tolist()
+
 numerical_features = df.select_dtypes(include=['int64','float64']).columns.tolist()
 
 # Separar X e y
 X = df[categorical_features + numerical_features]
-y = df['Stage']
+y = df["Stage"]
 
 # Partición train-test
 X_train, X_test, y_train, y_test = train_test_split(
