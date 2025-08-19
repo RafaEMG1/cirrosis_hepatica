@@ -381,20 +381,14 @@ st.markdown("""# 3. RFE""")
 file_path = os.path.join(path, "liver_cirrhosis.csv")
 df = pd.read_csv(file_path)
 
-st.subheader("Primeras 10 filas del dataset")
-st.dataframe(df.head(10), use_container_width=True)
-
-# Define variables categóricas y numéricas
-categorical=df.select_dtypes(include=['object','category'])
-categorical_features= categorical.drop('Stage', axis=1)
-numerical_features=df.select_dtypes(include=['int64','float64'])
-
-#categorical_features = dfcat.columns.tolist()
-#numerical_features = df_num.columns.tolist()
+# Definir variables categóricas y numéricas
+categorical = df.select_dtypes(include=['object','category'])
+categorical_features = categorical.columns.drop('Stage').tolist()
+numerical_features = df.select_dtypes(include=['int64','float64']).columns.tolist()
 
 # Separar X e y
 X = df[categorical_features + numerical_features]
-y = categorical_features['Stage']
+y = df['Stage']
 
 # Partición train-test
 X_train, X_test, y_train, y_test = train_test_split(
