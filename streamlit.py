@@ -381,6 +381,8 @@ st.markdown("""# 3. RFE""")
 file_path = os.path.join(path, "liver_cirrhosis.csv")
 df = pd.read_csv(file_path)
 
+st.write(df.columns.tolist())
+
 # Definir variables categóricas y numéricas
 categorical = df.select_dtypes(include=['object','category'])
 categorical_features = categorical.columns.drop('Stage').tolist()
