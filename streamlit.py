@@ -494,6 +494,11 @@ selected_numerical = st.sidebar.multiselect(
 # -----------------------------
 # Paso 2: Preparar X, y y preprocesador
 # -----------------------------
+dfcat= df_cat.drop('Stage', axis=1)
+
+categorical_features = dfcat.columns.tolist()
+numerical_features = df_num.columns.tolist()
+
 X = pd.concat([df_num[selected_numerical], df_cat[selected_categorical]], axis=1)
 y = df_cat['Stage']
 
