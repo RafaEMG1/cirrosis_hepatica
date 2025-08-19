@@ -381,6 +381,9 @@ st.markdown("""# 3. RFE""")
 file_path = os.path.join(path, "liver_cirrhosis.csv")
 df = pd.read_csv(file_path)
 
+st.subheader("Primeras 10 filas del dataset")
+st.dataframe(df.head(10), use_container_width=True)
+
 # Define variables categóricas y numéricas
 categorical=df.select_dtypes(include=['object','category'])
 categorical_features= categorical.drop('Stage', axis=1)
