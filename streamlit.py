@@ -35,6 +35,11 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from matplotlib import pyplot
+from sklearn.feature_selection import RFE
+from sklearn.feature_selection import RFECV
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+
 
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.linear_model import LogisticRegression
@@ -372,6 +377,94 @@ st.markdown("""## 2.1. MCA""")
 st.markdown("""## 2.2. PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 3. RFE""")
+
+# Define variables categóricas y numéricas
+dfcat= df_cat.drop('Stage', axis=1)
+
+categorical_features = dfcat.columns.tolist()
+numerical_features = df_num.columns.tolist()
+
+# Separar X e y
+X = df[categorical_features + numerical_features]
+y = df_cat['Stage']
+
+# Partición train-test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.33, random_state=42, stratify=y)
+
+# Preprocesador para codificar categóricas y pasar numéricas tal cual
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', 'passthrough', numerical_features),
+        ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_features)
+    ])
+
+# Definir modelos a evaluar
+models = {
+    'Decision Tree': DecisionTreeClassifier(random_state=42),
+    'Random Forest': RandomForestClassifier(random_state=42),
+    'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42)
+}
+# Diccionarios para guardar resultados
+results = {}
+selected_features = {}
+selected_feature_names = {}
+
+
+for name, model in models.items():
+    print(f"\nEvaluando modelo: {name}")
+
+    # RFECV con validación cruzada interna
+    rfe = RFECV(
+        estimator=model,
+        step=1,
+        cv=RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=42),
+        scoring='accuracy',
+        n_jobs=-1
+    )
+
+    # Pipeline completo
+    pipeline = Pipeline([
+        ('preprocessor', preprocessor),  # Debe ser un ColumnTransformer
+        ('feature_selection', rfe),
+        ('model', model)
+    ])
+
+    # Entrenar pipeline
+    pipeline.fit(X_train, y_train)
+
+    # Evaluar en test
+    accuracy_test = pipeline.score(X_test, y_test)
+    print(f"Accuracy en test set: {accuracy_test:.3f}")
+
+    # Obtener variables seleccionadas
+    mask = pipeline.named_steps['feature_selection'].support_
+    feature_names = pipeline.named_steps['preprocessor'].get_feature_names_out()
+    selected_names = feature_names[mask]
+
+    # Guardar resultados
+    results[name] = accuracy_test
+    selected_features[name] = len(selected_names)
+    selected_feature_names[name] = selected_names
+
+    # Mostrar resumen por modelo
+    print(f"Variables seleccionadas por {name}: {len(selected_names)}")
+    print(f"Nombres: {list(selected_names)}")
+
+# Mostrar resumen final
+print("\nResumen final:")
+for name in models:
+    print(f"\nModelo: {name}")
+    print(f"Accuracy: {results[name]:.3f}")
+    print(f"Variables seleccionadas: {selected_features[name]}")
+    print(f"Nombres: {list(selected_feature_names[name])}")
+
+
+
+
+
+
+##################################################################
 # ________________________________________________________________________________________________________________________________________________________________
 
 
