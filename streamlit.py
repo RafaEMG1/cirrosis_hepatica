@@ -473,7 +473,7 @@ numerical_features = st.sidebar.multiselect(
 
 ##################################################################
 st.title("Evaluación de Modelos con Selección de Variables (RFE)")
-
+ 
 # -----------------------------
 # Paso 1: Sidebar para seleccionar columnas
 # -----------------------------
