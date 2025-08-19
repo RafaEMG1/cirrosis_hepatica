@@ -378,6 +378,9 @@ st.markdown("""## 2.2. PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 3. RFE""")
 
+file_path = os.path.join(path, "liver_cirrhosis.csv")
+df = pd.read_csv(file_path)
+
 # Define variables categóricas y numéricas
 categorical=df.select_dtypes(include=['object','category'])
 categorical_features= categorical.drop('Stage', axis=1)
