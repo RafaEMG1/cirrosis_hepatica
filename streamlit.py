@@ -388,7 +388,7 @@ numerical_features=df.select_dtypes(include=['int64','float64'])
 
 # Separar X e y
 X = df[categorical_features + numerical_features]
-y = df_cat['Stage']
+y = categorical_features['Stage']
 
 # Partición train-test
 X_train, X_test, y_train, y_test = train_test_split(
