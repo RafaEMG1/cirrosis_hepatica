@@ -472,13 +472,18 @@ for name, model in models.items():
 
 # Resumen final
 st.header("Resumen Final")
+
 for name in models:
-    st.markdown(f"""
-    **Modelo:** {name}  
-    - Accuracy: {results[name]:.3f}  
-    - Variables seleccionadas: {selected_features[name]}  
-    - Nombres: {list(selected_feature_names[name])}  
-    """)
+    try:
+        st.markdown(f"""
+        **Modelo:** {name}  
+        - Accuracy: {results[name]:.3f}  
+        - Variables seleccionadas: {selected_features[name]}  
+        - Nombres: {list(selected_feature_names[name])}  
+        """)
+    except Exception as e:
+        st.error(f"⚠️ No se pudo mostrar el resumen de {name}. Error: {e}")
+
 
 
 
