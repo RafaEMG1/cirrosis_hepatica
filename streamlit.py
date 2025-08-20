@@ -378,22 +378,15 @@ st.markdown("""## 2.2. PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 3. RFE""")
 
-import os
-import pandas as pd
-import streamlit as st
-from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.feature_selection import RFECV
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-
 # --- Cargar dataset ---
-path = os.getcwd()
-file_path = os.path.join(path, "liver_cirrhosis.csv")
-df = pd.read_csv(file_path)
+# URL del CSV en GitHub (raw)
+url = "https://raw.githubusercontent.com/DiegoNaranjo84/cirrosis_hepatica/main/liver_cirrhosis.csv"
+
+# Cargar el dataset
+df = pd.read_csv(url)
+
+st.write("Vista previa de los datos:")
+st.dataframe(df.head())
 
 # Convertir Stage a categórica
 df["Stage"] = df["Stage"].astype("category")
