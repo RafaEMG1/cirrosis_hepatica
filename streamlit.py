@@ -478,9 +478,81 @@ for name in models:
         st.error(f"⚠️ No se pudo mostrar el resumen de {name}. Error: {e}")
 
 
+import streamlit as st
+from graphviz import Digraph
+
+# ----------------------------
+# Sección de Metodología
+# ----------------------------
+st.title("🧪 Metodología del Proyecto")
+
+st.markdown("""
+Este proyecto sigue una **metodología de Machine Learning** para la clasificación de la cirrosis hepática.  
+A continuación, se presentan los pasos de manera interactiva:
+""")
+
+# Paso 1
+with st.expander("📌 Paso 1: Carga de Datos"):
+    st.write("""
+    - Se utilizó un dataset con información clínica de pacientes.  
+    - El archivo fue almacenado en GitHub y cargado automáticamente en la aplicación.  
+    - Se revisó la calidad de los datos para identificar valores nulos y variables categóricas.
+    """)
+
+# Paso 2
+with st.expander("📌 Paso 2: Preprocesamiento"):
+    st.write("""
+    - Limpieza de datos: imputación de valores faltantes.  
+    - Codificación de variables categóricas (One-Hot Encoding).  
+    - Normalización de variables numéricas.  
+    """)
+
+# Paso 3
+with st.expander("📌 Paso 3: Selección de características"):
+    st.write("""
+    - Se aplicó **RFE (Recursive Feature Elimination)** y **RFECV** para reducir la dimensionalidad.  
+    - Esto permite quedarnos solo con las variables más relevantes para el modelo.  
+    """)
+
+# Paso 4
+with st.expander("📌 Paso 4: Entrenamiento del modelo"):
+    st.write("""
+    - Se probaron algoritmos como **Regresión Logística** y **SVM (Support Vector Machine)**.  
+    - Los modelos fueron entrenados con un **train-test split** para evitar sobreajuste.  
+    """)
+
+# Paso 5
+with st.expander("📌 Paso 5: Evaluación"):
+    st.write("""
+    - Se calcularon métricas como **Accuracy, Precision, Recall y F1-Score**.  
+    - También se aplicó validación cruzada para obtener una estimación más robusta.  
+    """)
+
+st.success("✅ Metodología explicada de forma dinámica")
+
+# ----------------------------
+# Diagrama visual del pipeline
+# ----------------------------
+st.subheader("🔎 Flujo Metodológico")
+
+dot = Digraph()
+
+dot.node("A", "Carga de Datos")
+dot.node("B", "Preprocesamiento")
+dot.node("C", "Selección de características (RFE/RFECV)")
+dot.node("D", "Entrenamiento del modelo\n(Logistic Regression, SVM)")
+dot.node("E", "Evaluación del modelo\n(Accuracy, Recall, F1-Score)")
+
+dot.edges(["AB", "BC", "CD", "DE"])
+
+st.graphviz_chart(dot)
 
 
-###################################################################
+
+
+
+
+---------------------------
 # ________________________________________________________________________________________________________________________________________________________________
 
 
