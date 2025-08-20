@@ -378,7 +378,20 @@ st.markdown("""## 2.2. PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 3. RFE""")
 
-# Cargar dataset
+import os
+import pandas as pd
+import streamlit as st
+from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.feature_selection import RFECV
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+
+# --- Cargar dataset ---
+path = os.getcwd()
 file_path = os.path.join(path, "liver_cirrhosis.csv")
 df = pd.read_csv(file_path)
 
@@ -388,7 +401,6 @@ df["Stage"] = df["Stage"].astype("category")
 # Definir variables categóricas y numéricas
 categorical = df.select_dtypes(include=['object','category'])
 categorical_features = categorical.columns.drop("Stage").tolist()
-
 numerical_features = df.select_dtypes(include=['int64','float64']).columns.tolist()
 
 # Separar X e y
@@ -399,29 +411,31 @@ y = df["Stage"]
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.33, random_state=42, stratify=y)
 
-# Preprocesador para codificar categóricas y pasar numéricas tal cual
+# Preprocesador
 preprocessor = ColumnTransformer(
     transformers=[
         ('num', 'passthrough', numerical_features),
         ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_features)
     ])
 
-# Definir modelos a evaluar
+# Definir modelos
 models = {
     'Decision Tree': DecisionTreeClassifier(random_state=42),
     'Random Forest': RandomForestClassifier(random_state=42),
     'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42)
 }
-# Diccionarios para guardar resultados
+
+# Resultados
 results = {}
 selected_features = {}
 selected_feature_names = {}
 
+st.title("Resultados de Selección de Características con RFE-CV")
 
 for name, model in models.items():
-    print(f"\nEvaluando modelo: {name}")
+    st.subheader(f"Modelo: {name}")
 
-    # RFECV con validación cruzada interna
+    # RFECV
     rfe = RFECV(
         estimator=model,
         step=1,
@@ -430,145 +444,43 @@ for name, model in models.items():
         n_jobs=-1
     )
 
-    # Pipeline completo
-    pipeline = Pipeline([
-        ('preprocessor', preprocessor),  # Debe ser un ColumnTransformer
-        ('feature_selection', rfe),
-        ('model', model)
-    ])
-
-    # Entrenar pipeline
-    pipeline.fit(X_train, y_train)
-
-    # Evaluar en test
-    accuracy_test = pipeline.score(X_test, y_test)
-    print(f"Accuracy en test set: {accuracy_test:.3f}")
-
-    # Obtener variables seleccionadas
-    mask = pipeline.named_steps['feature_selection'].support_
-    feature_names = pipeline.named_steps['preprocessor'].get_feature_names_out()
-    selected_names = feature_names[mask]
-
-    # Guardar resultados
-    results[name] = accuracy_test
-    selected_features[name] = len(selected_names)
-    selected_feature_names[name] = selected_names
-
-    # Mostrar resumen por modelo
-    print(f"Variables seleccionadas por {name}: {len(selected_names)}")
-    print(f"Nombres: {list(selected_names)}")
-
-# Mostrar resumen final
-print("\nResumen final:")
-for name in models:
-    print(f"\nModelo: {name}")
-    print(f"Accuracy: {results[name]:.3f}")
-    print(f"Variables seleccionadas: {selected_features[name]}")
-    print(f"Nombres: {list(selected_feature_names[name])}")
-
-st.title("Evaluación de Modelos con Selección de Variables")
-
-st.sidebar.header("Configuración de columnas")
-
-categorical_features = st.sidebar.multiselect(
-    "Selecciona columnas categóricas", df_cat.drop('Stage', axis=1).columns.tolist(), default=df_cat.drop('Stage', axis=1).columns.tolist()
-)
-
-numerical_features = st.sidebar.multiselect(
-    "Selecciona columnas numéricas", df_num.columns.tolist(), default=df_num.columns.tolist()
-)
-
-##################################################################
-st.title("Evaluación de Modelos con Selección de Variables (RFE)")
- 
-# -----------------------------
-# Paso 1: Sidebar para seleccionar columnas
-# -----------------------------
-st.sidebar.header("Configuración de columnas")
-
-selected_categorical = st.sidebar.multiselect(
-    "Selecciona columnas categóricas",
-    categorical_features,
-    default=categorical_features
-)
-
-selected_numerical = st.sidebar.multiselect(
-    "Selecciona columnas numéricas",
-    numerical_features,
-    default=numerical_features
-)
-
-# -----------------------------
-# Paso 2: Preparar X, y y preprocesador
-# -----------------------------
-dfcat= df_cat.drop('Stage', axis=1)
-
-categorical_features = dfcat.columns.tolist()
-numerical_features = df_num.columns.tolist()
-
-X = pd.concat([df_num[selected_numerical], df_cat[selected_categorical]], axis=1)
-y = df_cat['Stage']
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.33, random_state=42, stratify=y
-)
-
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', 'passthrough', selected_numerical),
-        ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), selected_categorical)
-    ]
-)
-
-# -----------------------------
-# Paso 3: Definir modelos
-# -----------------------------
-models = {
-    'Decision Tree': DecisionTreeClassifier(random_state=42),
-    'Random Forest': RandomForestClassifier(random_state=42),
-    'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42)
-}
-
-results = {}
-selected_features_count = {}
-selected_feature_names = {}
-
-st.header("Resultados de Modelos")
-
-# -----------------------------
-# Paso 4: Entrenar y mostrar resultados
-# -----------------------------
-for name, model in models.items():
-    st.subheader(f"{name}")
-
-    rfe = RFECV(
-        estimator=model,
-        step=1,
-        cv=RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=42),
-        scoring='accuracy',
-        n_jobs=-1
-    )
-
+    # Pipeline
     pipeline = Pipeline([
         ('preprocessor', preprocessor),
         ('feature_selection', rfe),
         ('model', model)
     ])
 
+    # Entrenar
     pipeline.fit(X_train, y_train)
-    accuracy_test = pipeline.score(X_test, y_test)
 
+    # Evaluar
+    accuracy_test = pipeline.score(X_test, y_test)
     mask = pipeline.named_steps['feature_selection'].support_
     feature_names = pipeline.named_steps['preprocessor'].get_feature_names_out()
     selected_names = feature_names[mask]
 
+    # Guardar
     results[name] = accuracy_test
-    selected_features_count[name] = len(selected_names)
+    selected_features[name] = len(selected_names)
     selected_feature_names[name] = selected_names
 
-    st.write(f"**Accuracy en test:** {accuracy_test:.3f}")
-    st.write(f"**Número de variables seleccionadas:** {len(selected_names)}")
-    st.write(f"**Variables seleccionadas:** {list(selected_names)}")
+    # Mostrar en la app
+    st.write(f"**Accuracy en test set:** {accuracy_test:.3f}")
+    st.write(f"**Variables seleccionadas:** {len(selected_names)}")
+    st.write(f"**Nombres:** {list(selected_names)}")
+
+# Resumen final
+st.header("Resumen Final")
+for name in models:
+    st.markdown(f"""
+    **Modelo:** {name}  
+    - Accuracy: {results[name]:.3f}  
+    - Variables seleccionadas: {selected_features[name]}  
+    - Nombres: {list(selected_feature_names[name])}  
+    """)
+
+
 
 ###################################################################
 # ________________________________________________________________________________________________________________________________________________________________
