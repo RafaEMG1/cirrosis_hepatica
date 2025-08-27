@@ -352,6 +352,236 @@ with g2:
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 1. Selección de carácteristicas""")
 
+# =========================
+# SECCIÓN 2 (solo CLASIFICACIÓN) con y = 'scale'
+# =========================
+import numpy as np, pandas as pd, altair as alt
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import cross_val_score
+from sklearn.feature_selection import chi2, mutual_info_classif, f_classif
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+
+# Compat OneHotEncoder según versión
+try:
+    CLS_OH = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+except TypeError:
+    CLS_OH = OneHotEncoder(handle_unknown="ignore", sparse=False)
+
+st.markdown("---")
+st.markdown("## 2. Selección de características y modelado (solo clasificación)")
+
+# ---- Objetivo fijo: 'scale' ----
+TARGET_COL = "Stage"
+if TARGET_COL not in df.columns:
+    # intento de match por nombre insensible a mayúsculas
+    _matches = [c for c in df.columns if c.lower() == TARGET_COL.lower()]
+    if _matches:
+        TARGET_COL = _matches[0]
+    else:
+        st.error("No se encontró la columna objetivo 'scale' en el DataFrame.")
+        st.stop()
+
+y = df[TARGET_COL]
+num_cols = df.select_dtypes(include=["number"]).columns.tolist()
+cat_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
+# excluir y de las listas
+if TARGET_COL in num_cols: num_cols = [c for c in num_cols if c != TARGET_COL]
+if TARGET_COL in cat_cols: cat_cols = [c for c in cat_cols if c != TARGET_COL]
+
+# ---- Config general (compacta) ----
+with st.container():
+    st.markdown("""
+    <div style="background-color:#f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+    <b>Configuración general</b> · Tarea: <code>Clasificación</code> · Objetivo: <code>scale</code>
+    </div>
+    """, unsafe_allow_html=True)
+    c0a, c0b = st.columns([2,1])
+    with c0a:
+        st.write(f"**Variable objetivo (y):** `{TARGET_COL}`")
+    with c0b:
+        top_k = st.slider("Top K (tablas/gráficas)", 3, 30, 10, 1, key="cls_topk")
+
+tab1, tab2, tab3, tab4 = st.tabs([
+    "2.1 Selección cat.",
+    "2.2 Selección num.",
+    "2.3 Unión cat+num",
+    "2.4 Modelos y comparación"
+])
+
+# ---------- 2.1 Categóricas ----------
+with tab1:
+    st.markdown("""
+    <div style="background-color:#f5f5f5; padding: 8px; border-radius: 8px; margin-bottom: 8px;">
+    <b>Controles · Categóricas</b>
+    </div>
+    """, unsafe_allow_html=True)
+    if not cat_cols:
+        st.info("No hay variables categóricas.")
+    else:
+        c1, c2 = st.columns([2,1])
+        with c1:
+            cats_sel = st.multiselect("Categóricas a evaluar", options=cat_cols,
+                                      default=cat_cols[:10], key="cls_cat_sel")
+        with c2:
+            metodo_cat = st.radio("Método", options=["Chi²", "Mutual Info"],
+                                  key="cls_cat_m", horizontal=True)
+        if cats_sel:
+            X_cat = df[cats_sel].copy()
+            # imputación + OneHot
+            cat_pipe = Pipeline([("imp", SimpleImputer(strategy="most_frequent")),
+                                 ("oh", CLS_OH)])
+            X_enc = cat_pipe.fit_transform(X_cat)
+            feat_names = cat_pipe.named_steps["oh"].get_feature_names_out(cats_sel)
+            if metodo_cat == "Chi²":
+                scores = chi2(X_enc, y)[0]  # chi2 devuelve (scores, pvals)
+            else:
+                scores = mutual_info_classif(X_enc, y, discrete_features=True, random_state=42)
+            sc_df = pd.DataFrame({"feature": feat_names, "score": scores}).sort_values("score", ascending=False)
+            st.dataframe(sc_df.head(top_k), use_container_width=True)
+            st.altair_chart(
+                alt.Chart(sc_df.head(top_k)).mark_bar().encode(
+                    x=alt.X("score:Q", title="Score"),
+                    y=alt.Y("feature:N", sort="-x", title="Feature"),
+                    tooltip=["feature","score"]
+                ).properties(height=min(34*top_k, 480)),
+                use_container_width=True
+            )
+        else:
+            st.warning("Selecciona al menos una variable.")
+
+# ---------- 2.2 Numéricas ----------
+with tab2:
+    st.markdown("""
+    <div style="background-color:#f5f5f5; padding: 8px; border-radius: 8px; margin-bottom: 8px;">
+    <b>Controles · Numéricas</b>
+    </div>
+    """, unsafe_allow_html=True)
+    if not num_cols:
+        st.info("No hay variables numéricas.")
+    else:
+        n1, n2 = st.columns([2,1])
+        with n1:
+            nums_sel = st.multiselect("Numéricas a evaluar", options=num_cols,
+                                      default=num_cols[:10], key="cls_num_sel")
+        with n2:
+            metodo_num = st.radio("Método", options=["ANOVA F", "Mutual Info"],
+                                  key="cls_num_m", horizontal=True)
+        if nums_sel:
+            X_num = df[nums_sel].copy()
+            num_pipe = Pipeline([("imp", SimpleImputer(strategy="median")),
+                                 ("sc", StandardScaler())])
+            Xn = num_pipe.fit_transform(X_num)
+            if metodo_num == "ANOVA F":
+                scores = f_classif(Xn, y)[0]
+            else:
+                scores = mutual_info_classif(Xn, y, random_state=42)
+            sc2_df = pd.DataFrame({"feature": nums_sel, "score": scores}).sort_values("score", ascending=False)
+            st.dataframe(sc2_df.head(top_k), use_container_width=True)
+            st.altair_chart(
+                alt.Chart(sc2_df.head(top_k)).mark_bar().encode(
+                    x=alt.X("score:Q", title="Score"),
+                    y=alt.Y("feature:N", sort="-x", title="Feature"),
+                    tooltip=["feature","score"]
+                ).properties(height=min(34*top_k, 480)),
+                use_container_width=True
+            )
+        else:
+            st.warning("Selecciona al menos una variable.")
+
+# ---------- 2.3 Unión cat + num ----------
+with tab3:
+    st.markdown("""
+    <div style="background-color:#f5f5f5; padding: 8px; border-radius: 8px; margin-bottom: 8px;">
+    <b>Controles · Unión</b>
+    </div>
+    """, unsafe_allow_html=True)
+    u1, u2 = st.columns([2,1])
+    with u1:
+        cats_u = st.multiselect("Categóricas a incluir", options=cat_cols,
+                                default=cat_cols[:5], key="cls_union_c")
+        nums_u = st.multiselect("Numéricas a incluir", options=num_cols,
+                                default=num_cols[:5], key="cls_union_n")
+    with u2:
+        show_feat = st.checkbox("Ver nombres de features", True, key="cls_union_show")
+    if (len(cats_u)+len(nums_u))==0:
+        st.info("Selecciona variables para unir.")
+    else:
+        num_pipe = Pipeline([("imp", SimpleImputer(strategy="median")), ("sc", StandardScaler())])
+        cat_pipe = Pipeline([("imp", SimpleImputer(strategy="most_frequent")), ("oh", CLS_OH)])
+        pre = ColumnTransformer([("num", num_pipe, nums_u), ("cat", cat_pipe, cats_u)], remainder="drop")
+        X_raw = df[nums_u+cats_u]
+        X_all = pre.fit_transform(X_raw, y)
+        st.success(f"X transformada: {X_all.shape[0]} filas × {X_all.shape[1]} columnas")
+        if show_feat:
+            try:
+                names = pre.get_feature_names_out()
+            except Exception:
+                names = [f"f{i}" for i in range(X_all.shape[1])]
+            st.caption("Primeros features generados:")
+            st.write(pd.DataFrame({"feature": names}).head(50))
+
+# ---------- 2.4 Modelos y comparación ----------
+with tab4:
+    st.markdown("""
+    <div style="background-color:#f5f5f5; padding: 8px; border-radius: 8px; margin-bottom: 8px;">
+    <b>Controles · Modelos</b>
+    </div>
+    """, unsafe_allow_html=True)
+    m1, m2 = st.columns([1,1])
+    with m1:
+        cv_folds = st.slider("CV folds", 3, 10, 3, 1, key="cls_cv")
+    with m2:
+        show_std = st.checkbox("Mostrar ±std", True, key="cls_std")
+
+    # reusar selección de 2.3 (o defaults)
+    cats_u2 = st.session_state.get("cls_union_c", cat_cols[:5])
+    nums_u2 = st.session_state.get("cls_union_n", num_cols[:5])
+    if (len(cats_u2)+len(nums_u2))==0:
+        st.warning("Configura la unión (tab 2.3) para entrenar modelos.")
+    else:
+        num_pipe = Pipeline([("imp", SimpleImputer(strategy="median")), ("sc", StandardScaler())])
+        cat_pipe = Pipeline([("imp", SimpleImputer(strategy="most_frequent")), ("oh", CLS_OH)])
+        pre = ColumnTransformer([("num", num_pipe, nums_u2), ("cat", cat_pipe, cats_u2)])
+
+        Xm = df[nums_u2+cats_u2]  # solo features seleccionadas
+        ym = y
+
+        modelos = {
+            "LogReg": LogisticRegression(max_iter=1000, n_jobs=-1),
+            "RF": RandomForestClassifier(n_estimators=200, random_state=42),
+            "GB": GradientBoostingClassifier(random_state=42),
+            "SVM": SVC(kernel="rbf", probability=True, random_state=42),
+            "Tree": DecisionTreeClassifier(random_state=42)
+        }
+        metric = "f1_macro"
+
+        out = []
+        for name, model in modelos.items():
+            pipe = Pipeline([("pre", pre), ("clf", model)])
+            try:
+                scores = cross_val_score(pipe, Xm, ym, cv=cv_folds, scoring=metric, n_jobs=-1)
+                out.append({"modelo": name, "media": float(np.mean(scores)), "std": float(np.std(scores))})
+            except Exception:
+                out.append({"modelo": name, "media": np.nan, "std": np.nan})
+
+        res = pd.DataFrame(out).sort_values("media", ascending=False)
+        st.dataframe(res, use_container_width=True)
+
+        base = alt.Chart(res).encode(
+            y=alt.Y("modelo:N", sort="-x", title="Modelo"),
+            x=alt.X("media:Q", title=f"Score CV ({metric})"),
+            tooltip=["modelo","media","std"]
+        )
+        chart = base.mark_bar()
+        if show_std:
+            chart = chart + base.mark_errorbar().encode(x="media:Q", xError="std:Q")
+        st.altair_chart(chart.properties(height=240), use_container_width=True)
 
 
 
