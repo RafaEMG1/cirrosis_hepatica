@@ -307,19 +307,18 @@ with c5:
 # =========================
 # Gráficos
 # =========================
-g1, g2 = st.columns([1.3, 1], gap="large")  # más espacio para el boxplot
+g1, g2 = st.columns([1.1, 1.3], gap="large")  # más espacio para histograma si es necesario
 
 with g1:
-    st.subheader(f"Boxplot (horizontal) de `{var_num}`")
-    box_data = pd.DataFrame({var_num: serie_num, "Variable": [var_num] * len(serie_num)})
+    st.subheader(f"Boxplot (vertical) de `{var_num}`")
+    box_data = pd.DataFrame({var_num: serie_num})
     box_chart = (
         alt.Chart(box_data)
-        .mark_boxplot(size=70)  # grosor de la caja
+        .mark_boxplot(size=100)  # grosor de la caja
         .encode(
-            x=alt.X(var_num, type="quantitative"),
-            y=alt.Y("Variable", type="nominal", axis=None)  # una sola fila
+            y=alt.Y(var_num, type="quantitative")  # vertical
         )
-        .properties(height=170)  # ancho se adapta con use_container_width
+        .properties(width=200, height=400)  # más ancho y alto
     )
     st.altair_chart(box_chart, use_container_width=True)
 
@@ -337,10 +336,9 @@ with g2:
                 alt.Tooltip('count()', title="Frecuencia")
             ]
         )
-        .properties(height=350)
+        .properties(height=400)
     )
     st.altair_chart(hist_chart, use_container_width=True)
-
 
 
 
