@@ -176,6 +176,16 @@ if not variables_categoricas:
     st.stop()
 
 # =========================
+# Controles con fondo gris claro
+# =========================
+st.markdown("""
+<div style="background-color:#f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+<b>Controles de visualización - Numéricas</b>
+</div>
+""", unsafe_allow_html=True)
+
+
+# =========================
 # Controles en la parte superior (solo para ESTA sección)
 # =========================
 with st.container():
