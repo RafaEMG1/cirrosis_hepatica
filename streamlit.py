@@ -363,6 +363,135 @@ st.markdown("""# 1. Selección de carácteristicas""")
 
 
 
+# =========================
+# 2.1 · Selección de características CATEGÓRICAS (Clasificación, y = 'Stage')
+# =========================
+import numpy as np, pandas as pd, altair as alt
+import streamlit as st
+from sklearn.pipeline import Pipeline
+from sklearn.feature_selection import chi2, mutual_info_classif
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder
+
+# --- OneHotEncoder compatible (según versión sklearn) ---
+try:
+    CAT21_OH = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+except TypeError:
+    CAT21_OH = OneHotEncoder(handle_unknown="ignore", sparse=False)
+
+# --- Helper para Arrow-safe ---
+if "arrow_safe" not in globals():
+    def arrow_safe(df: pd.DataFrame) -> pd.DataFrame:
+        out = df.copy()
+        for c in out.columns:
+            s = out[c]
+            if pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s):
+                out[c] = s.astype(str)
+            elif pd.api.types.is_integer_dtype(s):
+                out[c] = s.astype(float) if s.isna().any() else s.astype("int64")
+            elif pd.api.types.is_bool_dtype(s):
+                out[c] = s.fillna(False).astype(bool)
+        return out
+
+st.markdown("---")
+st.markdown("## 2.1. Selección de características categóricas (Clasificación)")
+
+# --------------------------------------
+# Objetivo fijo: 'Stage'
+# --------------------------------------
+TARGET_COL = "Stage"
+if TARGET_COL not in df.columns:
+    st.error("❌ No se encontró la columna objetivo 'Stage' en el DataFrame.")
+    st.stop()
+
+y_raw = df[TARGET_COL]
+
+# --------------------------------------
+# Detectar categóricas (excluyendo objetivo)
+# --------------------------------------
+cat_cols_21 = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
+cat_cols_21 = [c for c in cat_cols_21 if c != TARGET_COL]
+
+if not cat_cols_21:
+    st.info("No hay variables categóricas disponibles (excluyendo la variable objetivo).")
+    st.stop()
+
+# --------------------------------------
+# Controles con fondo gris
+# --------------------------------------
+st.markdown("""
+<div style="background-color:#f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+<b>Controles</b>
+</div>
+""", unsafe_allow_html=True)
+
+c1, c2, c3 = st.columns([2.2, 1, 1])
+with c1:
+    cats_sel_21 = st.multiselect("Categóricas a evaluar", options=cat_cols_21,
+                                 default=cat_cols_21[:min(10, len(cat_cols_21))],
+                                 key="cat21_sel")
+with c2:
+    metodo_cat_21 = st.radio("Método", ["Chi²", "Mutual Info"], index=0, horizontal=True, key="cat21_m")
+with c3:
+    topk_21 = st.slider("Top K", 3, 50, 10, 1, key="cat21_topk")
+
+# --------------------------------------
+# Cálculo de scores
+# --------------------------------------
+if not cats_sel_21:
+    st.warning("Selecciona al menos una variable categórica para evaluar.")
+else:
+    X_cat = df[cats_sel_21].copy()
+    y_codes, y_classes = pd.factorize(y_raw)  # factorizar objetivo
+
+    # Imputación + OneHot
+    cat_pipe = Pipeline([
+        ("imp", SimpleImputer(strategy="most_frequent")),
+        ("oh", CAT21_OH)
+    ])
+    X_enc = cat_pipe.fit_transform(X_cat)
+    feat_names = cat_pipe.named_steps["oh"].get_feature_names_out(cats_sel_21)
+
+    # Scores
+    if metodo_cat_21 == "Chi²":
+        scores = chi2(X_enc, y_codes)[0]
+    else:
+        scores = mutual_info_classif(X_enc, y_codes, discrete_features=True, random_state=42)
+
+    sc_df = pd.DataFrame({"feature_dummy": feat_names, "score": scores}).sort_values("score", ascending=False)
+    sc_df["variable"] = sc_df["feature_dummy"].str.split("_", n=1).str[0]
+
+    # Agregar scores por variable
+    agg_df = sc_df.groupby("variable", as_index=False)["score"].sum().sort_values("score", ascending=False)
+
+    # --------------------------------------
+    # Tabs: detalle y agregado
+    # --------------------------------------
+    t1, t2 = st.tabs(["Detalle (dummy)", "Agregado (variable)"])
+
+    with t1:
+        st.dataframe(arrow_safe(sc_df.head(topk_21)), use_container_width=True)
+        st.altair_chart(
+            alt.Chart(sc_df.head(topk_21)).mark_bar().encode(
+                x=alt.X("score:Q", title="Score"),
+                y=alt.Y("feature_dummy:N", sort="-x", title="Dummy (col=valor)"),
+                tooltip=["feature_dummy", "score"]
+            ).properties(height=min(34*topk_21, 480)),
+            use_container_width=True
+        )
+
+    with t2:
+        st.dataframe(arrow_safe(agg_df.head(topk_21)), use_container_width=True)
+        st.altair_chart(
+            alt.Chart(agg_df.head(topk_21)).mark_bar().encode(
+                x=alt.X("score:Q", title="Score (sumado por variable)"),
+                y=alt.Y("variable:N", sort="-x", title="Variable"),
+                tooltip=["variable", "score"]
+            ).properties(height=min(34*topk_21, 480)),
+            use_container_width=True
+        )
+
+    st.caption(f"Objetivo: **{TARGET_COL}** · Clases: {dict(pd.Series(y_raw).value_counts().sort_index())}")
 
 
 
