@@ -10,10 +10,11 @@ import altair as alt
 import streamlit as st
 import kagglehub
 
+
 # --- Preprocesamiento y utilidades ---
 from sklearn.model_selection import train_test_split, GridSearchCV, RepeatedStratifiedKFold, cross_val_score
 from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, OneHotEncoder, StandardScaler
-from sklearn.impute import SimpleImputer
+#from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 
