@@ -11,29 +11,6 @@ import streamlit as st
 import kagglehub
 
 
-# --- Preprocesamiento y utilidades ---
-from sklearn.model_selection import train_test_split, GridSearchCV, RepeatedStratifiedKFold, cross_val_score
-from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, OneHotEncoder, StandardScaler
-#from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-
-# --- Selección de características ---
-from sklearn.feature_selection import SelectKBest, chi2, mutual_info_classif, mutual_info_regression, f_classif, f_regression, RFE
-
-# --- Modelos de clasificación / regresión ---
-from sklearn.linear_model import LogisticRegression, LinearRegression, Perceptron
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-from xgboost import XGBClassifier
-
-# --- Métricas ---
-from sklearn.metrics import (
-    accuracy_score, classification_report, confusion_matrix, f1_score,
-    mean_absolute_error
-)
 
 # --- Configuración global ---
 warnings.filterwarnings("ignore")
