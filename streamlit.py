@@ -1,18 +1,39 @@
-# ===== IMPORTS GLOBALES (PEGA AL INICIO DEL ARCHIVO) =====
+# ===== IMPORTS GLOBALES =====
+import warnings
+warnings.filterwarnings("ignore")
+
+import os
 import numpy as np
 import pandas as pd
 import altair as alt
+import matplotlib.pyplot as plt
+import seaborn as sns
+import streamlit as st
+import kagglehub
 
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split, cross_val_score
+
+# feature selection
 from sklearn.feature_selection import (
     chi2, mutual_info_classif, mutual_info_regression,
     f_classif, f_regression
 )
-from sklearn.model_selection import cross_val_score
 
+# modelos
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, GradientBoostingClassifier, GradientBoostingRegressor
+from sklearn.svm import SVC, SVR
+
+# compat OneHotEncoder (según versión de sklearn)
+try:
+    OH_ENCODER = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+except TypeError:
+    OH_ENCODER = OneHotEncoder(handle_unknown="ignore", sparse=False)
 
 # Cargue de librerías
 import numpy as np
