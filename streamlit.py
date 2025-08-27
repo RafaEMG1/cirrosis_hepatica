@@ -153,16 +153,7 @@ with col2:
     st.dataframe(num_summary, use_container_width=True)
 
 
-
-
-
-
-
-
-
-
-
-
+##################### Categóricas #############################################
 
 st.markdown("""### Análisis de variables categóricas""")
 st.caption("Selecciona una variable para ver su distribución en tabla y gráfico de torta.")
@@ -180,7 +171,7 @@ if not variables_categoricas:
 # =========================
 st.markdown("""
 <div style="background-color:#f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-<b>Controles de visualización - Numéricas</b>
+<b>Controles de visualización - Variables Categótoricas</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -203,15 +194,6 @@ with st.container():
     with c2:
         incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na")
         orden_alfabetico = st.checkbox("Orden alfabético", value=False, key="cat_orden")
-
-    with c3:
-        metric_opt = st.radio("Métrica", options=["Porcentaje", "Conteo"], index=0, key="cat_metric")
-        top_n = st.slider(
-            "Top N",
-            min_value=3, max_value=30, value=10, step=1,
-            help="Agrupa categorías poco frecuentes en 'Otros'",
-            key="cat_topn"
-        )
 
 # =========================
 # Preparar datos
@@ -298,6 +280,7 @@ st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categor
 
 
 
+##################### Numéricas #############################################
 
 
 
