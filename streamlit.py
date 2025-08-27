@@ -468,6 +468,105 @@ except Exception as e:
     st.error("💥 Se produjo un error en 2.3 (Unión). Detalle:")
     st.exception(e)
 
+# =========================
+# 2.4. Modelos y comparación (Clasificación, y = Stage)
+# =========================
+try:
+    st.markdown("---")
+    st.markdown("## 2.4. Modelos y comparación (Clasificación)")
+
+    # Validaciones básicas
+    if TARGET_COL not in df.columns:
+        st.error("❌ No se encontró la columna objetivo 'Stage' en el DataFrame.")
+        st.stop()
+    y = df[TARGET_COL]
+
+    # Recuperar selección de 2.3 (con fallback a keys de los widgets)
+    cats_sel = st.session_state.get("union23_cats_saved", st.session_state.get("union23_cats", []))
+    nums_sel = st.session_state.get("union23_nums_saved", st.session_state.get("union23_nums", []))
+
+    if len(cats_sel) + len(nums_sel) == 0:
+        st.warning("Configura la unión en la sección **2.3** para poder entrenar los modelos.")
+    else:
+        # ---- Controles (compactos, con fondo gris) ----
+        st.markdown("""
+        <div style="background-color:#f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+        <b>Controles</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+        c1, c2, c3 = st.columns([1.4, 1, 1])
+        with c1:
+            metric_opt = st.selectbox(
+                "Métrica de CV",
+                options=["f1_macro", "accuracy", "roc_auc_ovr"],
+                index=0,
+                key="m24_metric"
+            )
+        with c2:
+            cv_folds = st.slider("Nº folds (CV)", 3, 10, 5, 1, key="m24_folds")
+        with c3:
+            show_std = st.checkbox("Mostrar ±std en la gráfica", True, key="m24_std")
+
+        # ---- Preprocesamiento igual que 2.3 ----
+        num_pipe_m = Pipeline([("imp", SimpleImputer(strategy="median")), ("sc", StandardScaler())])
+        cat_pipe_m = Pipeline([("imp", SimpleImputer(strategy="most_frequent")), ("oh", OH_ENCODER)])
+        pre_m = ColumnTransformer([("num", num_pipe_m, nums_sel), ("cat", cat_pipe_m, cats_sel)], remainder="drop")
+
+        X = df[nums_sel + cats_sel]
+
+        # ---- Modelos (compacto y efectivos) ----
+        modelos = {
+            "LogReg": LogisticRegression(max_iter=1000),
+            "RF": RandomForestClassifier(n_estimators=300, random_state=42),
+            "GB": GradientBoostingClassifier(random_state=42),
+            "SVM": SVC(kernel="rbf", probability=True, random_state=42),
+            "KNN": KNeighborsClassifier(n_neighbors=7)
+        }
+
+        # CV estratificado
+        from sklearn.model_selection import RepeatedStratifiedKFold, cross_val_score
+        cv = RepeatedStratifiedKFold(n_splits=cv_folds, n_repeats=1, random_state=42)
+
+        # ---- Entrenar y evaluar con CV ----
+        resultados = []
+        for nombre, modelo in modelos.items():
+            pipe = Pipeline([("pre", pre_m), ("clf", modelo)])
+            try:
+                scores = cross_val_score(pipe, X, y, scoring=metric_opt, cv=cv, n_jobs=-1)
+                resultados.append({"modelo": nombre, "media": float(np.mean(scores)), "std": float(np.std(scores))})
+            except Exception as e:
+                resultados.append({"modelo": nombre, "media": np.nan, "std": np.nan})
+
+        res_df = pd.DataFrame(resultados).sort_values("media", ascending=False)
+        st.dataframe(arrow_safe(res_df), use_container_width=True)
+
+        # ---- Gráfica de barras (+/- std opcional) ----
+        import altair as alt
+        base = alt.Chart(res_df).encode(
+            y=alt.Y("modelo:N", sort="-x", title="Modelo"),
+            x=alt.X("media:Q", title=f"Score CV ({metric_opt})"),
+            tooltip=["modelo", alt.Tooltip("media:Q", format=".4f"), alt.Tooltip("std:Q", format=".4f")]
+        )
+        bars = base.mark_bar()
+        if show_std:
+            # usar errorbar con desviación estándar
+            err = base.mark_errorbar().encode(x="media:Q", xError="std:Q")
+            chart = bars + err
+        else:
+            chart = bars
+
+        st.altair_chart(chart.properties(height=240), use_container_width=True)
+
+        # Notas útiles
+        st.caption(
+            "Notas: • `roc_auc_ovr` requiere probabilidades; todos los modelos configurados las proveen. "
+            "• `f1_macro` equilibra clases desbalanceadas. • Los datos se estandarizan solo para variables numéricas."
+        )
+
+except Exception as e:
+    st.error("💥 Se produjo un error en 2.4 (Modelos). Detalle:")
+    st.exception(e)
 
 
 # ________________________________________________________________________________________________________________________________________________________________
