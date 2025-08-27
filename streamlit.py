@@ -47,6 +47,32 @@ warnings.filterwarnings("ignore")
 import warnings
 warnings.filterwarnings("ignore")
 
+# ====== UTILIDADES GLOBALES ======
+
+# 1) Variable objetivo fija
+TARGET_COL = "Stage"
+
+# 2) OneHotEncoder compatible (según versión de scikit-learn)
+try:
+    OH_ENCODER = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+except TypeError:
+    OH_ENCODER = OneHotEncoder(handle_unknown="ignore", sparse=False)
+
+# 3) Helper para evitar problemas con Arrow en st.dataframe
+def arrow_safe(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    for c in out.columns:
+        s = out[c]
+        if pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s):
+            out[c] = s.astype(str)
+        elif pd.api.types.is_integer_dtype(s):
+            out[c] = s.astype(float) if s.isna().any() else s.astype("int64")
+        elif pd.api.types.is_bool_dtype(s):
+            out[c] = s.fillna(False).astype(bool)
+    return out
+
+
+
 
 st.set_page_config(page_title="Cirrosis Hepatica Streamlit App", layout="wide")
 st.title("Clasificación de los estadios de la cirrosis hepática con métodos de Machine Learning")
@@ -145,11 +171,13 @@ col1, col2 = st.columns(2, gap="large")
 
 with col1:
     st.subheader("Resumen variables categóricas")
-    st.dataframe(cat_summary, use_container_width=True)
+    cat_summary["Tipo de dato"] = cat_summary["Tipo de dato"].astype(str)
+    st.dataframe(arrow_safe(cat_summary), use_container_width=True)
 
 with col2:
     st.subheader("Resumen variables numéricas")
-    st.dataframe(num_summary, use_container_width=True)
+    num_summary["Tipo de dato"] = num_summary["Tipo de dato"].astype(str)
+    st.dataframe(arrow_safe(num_summary), use_container_width=True)
 
 ##################### Categóricas #############################################
 st.markdown("""---""")
@@ -198,7 +226,7 @@ if not incluir_na:
 
 vc = serie.value_counts(dropna=incluir_na)
 labels = vc.index.to_list()
-labels = ["(NaN)" if (isinstance(x, float) and np.isnan(x)) else str(x) for x in labels]
+labels = ["(NaN)" if pd.isna(x) else str(x) for x in labels]
 counts = vc.values
 
 data = pd.DataFrame({"Categoría": labels, "Conteo": counts})
@@ -353,6 +381,13 @@ st.markdown("""# 1. Selección de carácteristicas""")
 try:
     st.markdown("---")
     st.markdown("## 2.1. Selección de características categóricas (Clasificación)")
+
+
+    # Validar que Stage exista
+    if TARGET_COL not in df.columns:
+        st.error("❌ No se encontró la columna objetivo 'Stage' en el DataFrame.")
+        st.stop()
+
 
     y_raw = df[TARGET_COL]
     cat_cols = df.select_dtypes(include=["object","category","bool"]).columns.tolist()
