@@ -1,4 +1,3 @@
-
 # ===== IMPORTS GLOBALES (PEGA AL INICIO DEL ARCHIVO) =====
 import numpy as np
 import pandas as pd
