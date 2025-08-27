@@ -373,6 +373,8 @@ with g2:
 st.markdown("""# 1. Selección de carácteristicas""")
 
 
+# ________________________________________________________________________________________________________________________________________________________________
+st.markdown("""## 1.1. Selección de carácteristicas categóricas""")
 
 
 # ==============================
@@ -464,11 +466,182 @@ except Exception as e:
 
 
 # ________________________________________________________________________________________________________________________________________________________________
-st.markdown("""## 1.1. Selección de carácteristicas categóricas""")
-# ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 1.2. Selección de carácteristicas numéricas""")
+
+# =========================
+# 2.2. Selección de características NUMÉRICAS (Clasificación, y = Stage)
+# =========================
+try:
+    st.markdown("---")
+    st.markdown("## 2.2. Selección de características numéricas (Clasificación)")
+
+    # Validar y preparar objetivo
+    if TARGET_COL not in df.columns:
+        st.error("❌ No se encontró la columna objetivo 'Stage' en el DataFrame.")
+        st.stop()
+    y_raw = df[TARGET_COL]
+    y_codes, _ = pd.factorize(y_raw)
+
+    # Detectar numéricas (excluye la y)
+    num_cols_22 = df.select_dtypes(include=["number"]).columns.tolist()
+    num_cols_22 = [c for c in num_cols_22 if c != TARGET_COL]
+
+    if not num_cols_22:
+        st.info("No hay variables numéricas disponibles (excluyendo la variable objetivo).")
+    else:
+        # Controles
+        st.markdown("""
+        <div style="background-color:#f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+        <b>Controles</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+        n1, n2, n3 = st.columns([2.2, 1, 1])
+        with n1:
+            nums_sel_22 = st.multiselect(
+                "Numéricas a evaluar",
+                options=num_cols_22,
+                default=num_cols_22[:min(10, len(num_cols_22))],
+                key="num22_sel"
+            )
+        with n2:
+            metodo_num_22 = st.radio(
+                "Método", ["ANOVA F", "Mutual Info"],
+                index=0, horizontal=True, key="num22_m"
+            )
+        with n3:
+            topk_22 = st.slider("Top K", 3, 50, 10, 1, key="num22_topk")
+
+        if nums_sel_22:
+            # Imputación + escalado
+            num_pipe = Pipeline([
+                ("imp", SimpleImputer(strategy="median")),
+                ("sc", StandardScaler())
+            ])
+            Xn = num_pipe.fit_transform(df[nums_sel_22])
+
+            # Scores
+            if metodo_num_22 == "ANOVA F":
+                scores = f_classif(Xn, y_codes)[0]  # (F, pval) -> tomamos F
+            else:
+                scores = mutual_info_classif(Xn, y_codes, random_state=42)
+
+            sc2_df = pd.DataFrame({"feature": nums_sel_22, "score": scores}) \
+                        .sort_values("score", ascending=False)
+
+            # Tabla + gráfico
+            st.dataframe(arrow_safe(sc2_df.head(topk_22)), use_container_width=True)
+            st.altair_chart(
+                alt.Chart(sc2_df.head(topk_22)).mark_bar().encode(
+                    x=alt.X("score:Q", title="Score"),
+                    y=alt.Y("feature:N", sort="-x", title="Variable"),
+                    tooltip=["feature", "score"]
+                ).properties(height=min(34*topk_22, 480)),
+                use_container_width=True
+            )
+
+            st.caption(f"Objetivo: **{TARGET_COL}** · Clases: {dict(pd.Series(y_raw).value_counts().sort_index())}")
+        else:
+            st.warning("Selecciona al menos una variable numérica para evaluar.")
+
+except Exception as e:
+    st.error("💥 Se produjo un error en 2.2 (Numéricas). Detalle:")
+    st.exception(e)
+
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 1.3. Unión de variables categóricas y númericas""")
+
+# =========================
+# 2.3. Unión de variables Categóricas + Numéricas (Clasificación, y = Stage)
+# =========================
+try:
+    st.markdown("---")
+    st.markdown("## 2.3. Unión de variables categóricas y numéricas")
+
+    # Validar objetivo
+    if TARGET_COL not in df.columns:
+        st.error("❌ No se encontró la columna objetivo 'Stage' en el DataFrame.")
+        st.stop()
+    y_union = df[TARGET_COL]
+
+    # Detectar columnas por tipo (excluye y)
+    cat_cols_23 = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
+    num_cols_23 = df.select_dtypes(include=["number"]).columns.tolist()
+    cat_cols_23 = [c for c in cat_cols_23 if c != TARGET_COL]
+    num_cols_23 = [c for c in num_cols_23 if c != TARGET_COL]
+
+    if len(cat_cols_23) + len(num_cols_23) == 0:
+        st.info("No hay variables disponibles para unir.")
+    else:
+        # Controles
+        st.markdown("""
+        <div style="background-color:#f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+        <b>Controles</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+        u1, u2 = st.columns([2, 1])
+        with u1:
+            cats_u = st.multiselect(
+                "Categóricas a incluir",
+                options=cat_cols_23,
+                default=cat_cols_23[:min(5, len(cat_cols_23))],
+                key="union23_cats"
+            )
+            nums_u = st.multiselect(
+                "Numéricas a incluir",
+                options=num_cols_23,
+                default=num_cols_23[:min(5, len(num_cols_23))],
+                key="union23_nums"
+            )
+        with u2:
+            show_feat = st.checkbox("Ver nombres de features", True, key="union23_show")
+
+        if len(cats_u) + len(nums_u) == 0:
+            st.warning("Selecciona al menos una variable (categórica o numérica).")
+        else:
+            # Pipelines
+            num_pipe = Pipeline([
+                ("imp", SimpleImputer(strategy="median")),
+                ("sc", StandardScaler())
+            ])
+            cat_pipe = Pipeline([
+                ("imp", SimpleImputer(strategy="most_frequent")),
+                ("oh", OH_ENCODER)  # usa el encoder compatible global
+            ])
+
+            pre = ColumnTransformer(
+                transformers=[
+                    ("num", num_pipe, nums_u),
+                    ("cat", cat_pipe, cats_u)
+                ],
+                remainder="drop"
+            )
+
+            X_raw = df[nums_u + cats_u]
+            X_all = pre.fit_transform(X_raw, y_union)
+
+            st.success(f"X transformada: **{X_all.shape[0]} filas × {X_all.shape[1]} columnas**")
+
+            if show_feat:
+                try:
+                    names = pre.get_feature_names_out()
+                except Exception:
+                    names = [f"f{i}" for i in range(X_all.shape[1])]
+                st.caption("Vista rápida de nombres de características generadas:")
+                st.dataframe(
+                    arrow_safe(pd.DataFrame({"feature": names}).head(60)),
+                    use_container_width=True
+                )
+
+            # Persistir selección para 2.4 (si la vas a usar)
+            st.session_state["union23_cats"] = cats_u
+            st.session_state["union23_nums"] = nums_u
+
+except Exception as e:
+    st.error("💥 Se produjo un error en 2.3 (Unión). Detalle:")
+    st.exception(e)
+
 
 
 
