@@ -153,9 +153,8 @@ with col2:
     st.dataframe(num_summary, use_container_width=True)
 
 ##################### Categóricas #############################################
-
-st.markdown("""### ---
-Análisis de variables categóricas""")
+st.markdown("""---""")
+st.markdown("""### Análisis de variables categóricas""")
 st.caption("Selecciona una variable para ver su distribución en tabla y gráfico de torta.")
 
 # =========================
@@ -259,8 +258,7 @@ with gcol:
 # =========================
 # Análisis de variables numéricas
 # =========================
-st.markdown("""---
-### Análisis de variables numéricas""")
+st.markdown("""### Análisis de variables numéricas""")
 st.caption("Selecciona una variable para ver su distribución en tabla, boxplot e histograma.")
 
 # Detectar variables numéricas
