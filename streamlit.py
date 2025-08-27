@@ -35,6 +35,12 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from matplotlib import pyplot
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.feature_selection import chi2, mutual_info_classif, mutual_info_regression, f_classif, f_regression
+from sklearn.model_selection import cross_val_score
 
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.linear_model import LogisticRegression
