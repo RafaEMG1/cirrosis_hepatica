@@ -9,6 +9,17 @@ import kagglehub
 import os
 import altair as alt
 
+
+from sklearn.impute import SimpleImputer  # <- garantiza disponibilidad global
+
+# OneHotEncoder compatible con versiones (sparse_output vs sparse)
+from sklearn.preprocessing import OneHotEncoder
+try:
+    OH_ENCODER = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+except TypeError:
+    OH_ENCODER = OneHotEncoder(handle_unknown="ignore", sparse=False)
+
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OrdinalEncoder
@@ -369,7 +380,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 
 # Compat OneHotEncoder según versión
 try:
-    CLS_OH = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+    CLS_OH =OH_ENCODER
 except TypeError:
     CLS_OH = OneHotEncoder(handle_unknown="ignore", sparse=False)
 
