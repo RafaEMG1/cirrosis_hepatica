@@ -1,55 +1,48 @@
-# Cargue de librerías
+# -------------------- Carga y manipulación de datos --------------------
 import numpy as np
 import pandas as pd
+import os
+import warnings
+
+# -------------------- Visualización --------------------
 import matplotlib.pyplot as plt
 import seaborn as sns
-import streamlit as st
-import kagglehub
-import os
 import altair as alt
+import streamlit as st
 
+# -------------------- Kaggle dataset --------------------
+import kagglehub
+
+# -------------------- Scikit-learn: Preprocesamiento y Modelos --------------------
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import OrdinalEncoder
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import chi2
-from sklearn.feature_selection import mutual_info_classif
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
-from sklearn.feature_selection import f_classif
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.model_selection import cross_val_score
-from numpy import mean
-from numpy import std
-from sklearn.datasets import make_regression
-from sklearn.feature_selection import f_regression
-from sklearn.feature_selection import mutual_info_regression
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.feature_selection import RFE
-from sklearn.linear_model import Perceptron
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
-from matplotlib import pyplot
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, OneHotEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.impute import SimpleImputer
-from sklearn.feature_selection import chi2, mutual_info_classif, mutual_info_regression, f_classif, f_regression
-from sklearn.model_selection import cross_val_score
 
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
+# -------------------- Selección de características --------------------
+from sklearn.feature_selection import (
+    SelectKBest, chi2, mutual_info_classif, mutual_info_regression, f_classif, f_regression, RFE
+)
+
+# -------------------- Modelos --------------------
+from sklearn.linear_model import LogisticRegression, LinearRegression, Perceptron
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
-from sklearn.model_selection import cross_val_score
+
+# -------------------- Métricas --------------------
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score, mean_absolute_error
+
+# -------------------- Validación y Búsqueda de Hiperparámetros --------------------
+from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold, cross_val_score
+
+# -------------------- Configuración --------------------
+warnings.filterwarnings("ignore")
+
+
 
 import warnings
 warnings.filterwarnings("ignore")
