@@ -160,6 +160,10 @@ with col2:
 
 
 
+
+
+
+
 st.markdown("""### Análisis de variables categóricas""")
 st.caption("Selecciona una variable para ver su distribución en tabla y gráfico de torta.")
 
@@ -167,25 +171,37 @@ st.caption("Selecciona una variable para ver su distribución en tabla y gráfic
 # Detectar variables categóricas
 # =========================
 variables_categoricas = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
-
 if not variables_categoricas:
     st.warning("No se detectaron variables categóricas (object/category/bool) en `df`.")
     st.stop()
 
 # =========================
-# Controles en la parte superior
+# Controles en la parte superior (solo para ESTA sección)
 # =========================
 with st.container():
     st.markdown("#### Controles de visualización")
     c1, c2, c3 = st.columns([1.5, 1, 1])
+
     with c1:
-        var = st.selectbox("Variable categórica", options=variables_categoricas, index=0)
+        var = st.selectbox(
+            "Variable categórica",
+            options=variables_categoricas,
+            index=0,
+            key="cat_var"  # clave única
+        )
+
     with c2:
-        incluir_na = st.checkbox("Incluir NaN", value=True)
-        orden_alfabetico = st.checkbox("Orden alfabético", value=False)
+        incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na")
+        orden_alfabetico = st.checkbox("Orden alfabético", value=False, key="cat_orden")
+
     with c3:
-        metric_opt = st.radio("Métrica", options=["Porcentaje", "Conteo"], index=0)
-        top_n = st.slider("Top N", min_value=3, max_value=30, value=10, step=1, help="Agrupa categorías poco frecuentes en 'Otros'")
+        metric_opt = st.radio("Métrica", options=["Porcentaje", "Conteo"], index=0, key="cat_metric")
+        top_n = st.slider(
+            "Top N",
+            min_value=3, max_value=30, value=10, step=1,
+            help="Agrupa categorías poco frecuentes en 'Otros'",
+            key="cat_topn"
+        )
 
 # =========================
 # Preparar datos
@@ -195,6 +211,7 @@ if not incluir_na:
     serie = serie.dropna()
 
 vc = serie.value_counts(dropna=incluir_na)
+
 labels = vc.index.to_list()
 labels = ["(NaN)" if (isinstance(x, float) and np.isnan(x)) else str(x) for x in labels]
 counts = vc.values
@@ -266,9 +283,6 @@ with c3:
     st.metric("Incluye NaN", "Sí" if incluir_na else "No")
 
 st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
-
-
-
 
 
 
