@@ -287,6 +287,10 @@ st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categor
 
 
 
+
+
+
+
 # =========================
 # Análisis de variables numéricas
 # =========================
@@ -300,10 +304,15 @@ if not variables_numericas:
     st.stop()
 
 # =========================
-# Controles en la parte superior
+# Controles con fondo gris claro
 # =========================
+st.markdown("""
+<div style="background-color:#f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+<b>Controles de visualización - Numéricas</b>
+</div>
+""", unsafe_allow_html=True)
+
 with st.container():
-    st.markdown("#### Controles de visualización - Numéricas")
     c1, c2 = st.columns([2, 1])
 
     with c1:
@@ -382,6 +391,14 @@ fig, ax = plt.subplots(figsize=(10, 8))
 sns.heatmap(correlacion, annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
 ax.set_title("Matriz de Correlación")
 st.pyplot(fig)
+
+
+
+
+
+
+
+
 
 
 # ________________________________________________________________________________________________________________________________________________________________
