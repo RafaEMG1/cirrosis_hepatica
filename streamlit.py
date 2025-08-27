@@ -287,132 +287,6 @@ st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categor
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-#####--------------------------------------------------------------------------------------#########
-
-st.markdown("""### Análisis de variables categóricas""")
-st.caption("Selecciona una variable para ver su distribución en tabla y gráfico de torta.")
-
-variables_categoricas = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
-
-if not variables_categoricas:
-    st.warning("No se detectaron variables categóricas (object/category/bool) en `df`.")
-    st.stop()
-
-
-# =========================
-# Controles (Sidebar)
-# =========================
-st.sidebar.header("Controles")
-var = st.sidebar.selectbox("Variable categórica", options=variables_categoricas, index=0)
-incluir_na = st.sidebar.checkbox("Incluir NaN", value=True)
-metric_opt = st.sidebar.radio("Métrica", options=["Porcentaje", "Conteo"], index=0)
-top_n = st.sidebar.slider("Top N", min_value=3, max_value=30, value=10, step=1, help="Agrupa las categorías menos frecuentes en 'Otros'")
-orden_alfabetico = st.sidebar.checkbox("Ordenar categorías alfabéticamente (en la tabla)", value=False)
-
-# =========================
-# Preparar datos
-# =========================
-serie = df[var].copy()
-
-if not incluir_na:
-    serie = serie.dropna()
-
-vc = serie.value_counts(dropna=incluir_na)
-
-# Etiqueta amigable para NaN
-labels = vc.index.to_list()
-labels = ["(NaN)" if (isinstance(x, float) and np.isnan(x)) else str(x) for x in labels]
-counts = vc.values
-
-data = pd.DataFrame({"Categoría": labels, "Conteo": counts})
-data["Porcentaje"] = (data["Conteo"] / data["Conteo"].sum() * 100).round(2)
-
-# Agrupar en "Otros" si supera Top N
-if len(data) > top_n:
-    top = data.nlargest(top_n, "Conteo").copy()
-    otros = data.drop(top.index)
-    fila_otros = pd.DataFrame({
-        "Categoría": ["Otros"],
-        "Conteo": [int(otros["Conteo"].sum())],
-        "Porcentaje": [round(float(otros["Porcentaje"].sum()), 2)]
-    })
-    data_plot = pd.concat([top, fila_otros], ignore_index=True)
-else:
-    data_plot = data.copy()
-
-# Orden por métrica elegida para el gráfico
-metric = "Porcentaje" if metric_opt == "Porcentaje" else "Conteo"
-data_plot = data_plot.sort_values(metric, ascending=False).reset_index(drop=True)
-
-# Orden opcional alfabético en la tabla (no afecta el gráfico)
-data_table = data_plot.copy()
-if orden_alfabetico:
-    data_table = data_table.sort_values("Categoría").reset_index(drop=True)
-
-# =========================
-# Mostrar tabla y gráfico
-# =========================
-tcol, gcol = st.columns([1.1, 1.3], gap="large")
-
-with tcol:
-    st.subheader(f"Distribución de `{var}`")
-    st.dataframe(
-        data_table.assign(Porcentaje=data_table["Porcentaje"].round(2)),
-        use_container_width=True
-    )
-
-with gcol:
-    st.subheader("Gráfico de torta")
-    chart = (
-        alt.Chart(data_plot)
-        .mark_arc(outerRadius=110)
-        .encode(
-            theta=alt.Theta(field=metric, type="quantitative"),
-            color=alt.Color("Categoría:N", legend=alt.Legend(title="Categoría")),
-            tooltip=[
-                alt.Tooltip("Categoría:N"),
-                alt.Tooltip("Conteo:Q", format=","),
-                alt.Tooltip("Porcentaje:Q", format=".2f")
-            ],
-        )
-        .properties(width="container", height=380)
-    )
-    st.altair_chart(chart, use_container_width=True)
-
-# =========================
-# Extras informativos
-# =========================
-st.divider()
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.metric("Categorías mostradas", f"{len(data_plot)}")
-with c2:
-    st.metric("Total registros (variable seleccionada)", f"{int(serie.shape[0]):,}".replace(",", "."))
-with c3:
-    st.metric("Incluye NaN", "Sí" if incluir_na else "No")
-
-st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
-
-
-
-
-
-#####--------------------------------------------------------------------------------------#########
-
-
 # =========================
 # Análisis de variables numéricas
 # =========================
@@ -421,15 +295,30 @@ st.caption("Selecciona una variable para ver su distribución en tabla, boxplot 
 
 # Detectar variables numéricas
 variables_numericas = df.select_dtypes(include=["number"]).columns.tolist()
-
 if not variables_numericas:
     st.warning("No se detectaron variables numéricas en `df`.")
     st.stop()
 
-# Controles (Sidebar)
-st.sidebar.header("Controles - Numéricas")
-var_num = st.sidebar.selectbox("Variable numérica", options=variables_numericas, index=0, key="num_var")
-bins = st.sidebar.slider("Número de bins (histograma)", min_value=5, max_value=100, value=30, step=5)
+# =========================
+# Controles en la parte superior
+# =========================
+with st.container():
+    st.markdown("#### Controles de visualización - Numéricas")
+    c1, c2 = st.columns([2, 1])
+
+    with c1:
+        var_num = st.selectbox(
+            "Variable numérica",
+            options=variables_numericas,
+            index=0,
+            key="num_var_top"
+        )
+    with c2:
+        bins = st.slider(
+            "Número de bins (histograma)",
+            min_value=5, max_value=100, value=30, step=5,
+            key="num_bins_top"
+        )
 
 # Preparar serie
 serie_num = df[var_num].dropna()
@@ -474,22 +363,25 @@ with g2:
         .encode(
             alt.X(var_num, bin=alt.Bin(maxbins=bins)),
             y='count()',
-            tooltip=[alt.Tooltip(var_num, bin=alt.Bin(maxbins=bins)), alt.Tooltip('count()', title="Frecuencia")]
+            tooltip=[
+                alt.Tooltip(var_num, bin=alt.Bin(maxbins=bins)),
+                alt.Tooltip('count()', title="Frecuencia")
+            ]
         )
         .properties(height=300)
     )
     st.altair_chart(hist_chart, use_container_width=True)
 
-
+# =========================
+# Matriz de Correlación
+# =========================
 st.markdown("### Matriz de Correlación")
-
 correlacion = df.corr(numeric_only=True)
 
 fig, ax = plt.subplots(figsize=(10, 8))
 sns.heatmap(correlacion, annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
 ax.set_title("Matriz de Correlación")
-
-st.pyplot(fig) 
+st.pyplot(fig)
 
 
 # ________________________________________________________________________________________________________________________________________________________________
