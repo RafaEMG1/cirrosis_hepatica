@@ -347,6 +347,87 @@ st.markdown("""# 1. Selección de carácteristicas""")
 
 
 
+# ==============================
+# 2.1 Selección Categóricas (Clasificación con Stage)
+# ==============================
+try:
+    st.markdown("---")
+    st.markdown("## 2.1. Selección de características categóricas (Clasificación)")
+
+    y_raw = df[TARGET_COL]
+    cat_cols = df.select_dtypes(include=["object","category","bool"]).columns.tolist()
+    cat_cols = [c for c in cat_cols if c != TARGET_COL]
+
+    if not cat_cols:
+        st.info("No hay variables categóricas disponibles (excluyendo la variable objetivo).")
+    else:
+        st.markdown("""
+        <div style="background-color:#f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+        <b>Controles</b>
+        </div>
+        """, unsafe_allow_html=True)
+        c1, c2, c3 = st.columns([2.2, 1, 1])
+        with c1:
+            cats_sel = st.multiselect("Categóricas a evaluar", options=cat_cols,
+                                      default=cat_cols[:min(10, len(cat_cols))],
+                                      key="cat21_sel")
+        with c2:
+            metodo = st.radio("Método", ["Chi²", "Mutual Info"], index=0, horizontal=True, key="cat21_m")
+        with c3:
+            topk = st.slider("Top K", 3, 50, 10, 1, key="cat21_topk")
+
+        if cats_sel:
+            from sklearn.pipeline import Pipeline
+            from sklearn.feature_selection import chi2, mutual_info_classif
+
+            X_cat = df[cats_sel].copy()
+            y_codes, _ = pd.factorize(y_raw)
+
+            cat_pipe = Pipeline([("imp", SimpleImputer(strategy="most_frequent")),
+                                 ("oh", OH_ENCODER)])
+            X_enc = cat_pipe.fit_transform(X_cat)
+            feat_names = cat_pipe.named_steps["oh"].get_feature_names_out(cats_sel)
+
+            scores = chi2(X_enc, y_codes)[0] if metodo == "Chi²" else \
+                     mutual_info_classif(X_enc, y_codes, discrete_features=True, random_state=42)
+
+            sc_df = pd.DataFrame({"feature_dummy": feat_names, "score": scores}).sort_values("score", ascending=False)
+            sc_df["variable"] = sc_df["feature_dummy"].str.split("_", n=1).str[0]
+            agg_df = sc_df.groupby("variable", as_index=False)["score"].sum().sort_values("score", ascending=False)
+
+            t1, t2 = st.tabs(["Detalle (dummy)", "Agregado (variable)"])
+            with t1:
+                st.dataframe(arrow_safe(sc_df.head(topk)), use_container_width=True)
+                st.altair_chart(
+                    alt.Chart(sc_df.head(topk)).mark_bar().encode(
+                        x=alt.X("score:Q", title="Score"),
+                        y=alt.Y("feature_dummy:N", sort="-x", title="Dummy (col=valor)"),
+                        tooltip=["feature_dummy","score"]
+                    ).properties(height=min(34*topk, 480)),
+                    use_container_width=True
+                )
+            with t2:
+                st.dataframe(arrow_safe(agg_df.head(topk)), use_container_width=True)
+                st.altair_chart(
+                    alt.Chart(agg_df.head(topk)).mark_bar().encode(
+                        x=alt.X("score:Q", title="Score (sumado por variable)"),
+                        y=alt.Y("variable:N", sort="-x", title="Variable"),
+                        tooltip=["variable","score"]
+                    ).properties(height=min(34*topk, 480)),
+                    use_container_width=True
+                )
+            st.caption(f"Objetivo: **{TARGET_COL}** · Clases: {dict(pd.Series(y_raw).value_counts().sort_index())}")
+        else:
+            st.warning("Selecciona al menos una variable categórica para evaluar.")
+except Exception as e:
+    st.error("💥 Se produjo un error en 2.1 (Categóricas). Revisa el detalle abajo.")
+    st.exception(e)
+
+
+
+
+
+
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 1.1. Selección de carácteristicas categóricas""")
 # ________________________________________________________________________________________________________________________________________________________________
