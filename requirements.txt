@@ -11,3 +11,4 @@ prince==0.12.0
 xgboost
 kagglehub
 altair
+sklearn
