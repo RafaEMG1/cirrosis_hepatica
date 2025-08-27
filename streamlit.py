@@ -320,22 +320,20 @@ with g1:
     st.altair_chart(box_chart, use_container_width=True)
 
 with g2:
-    st.subheader(f"Histograma de `{var_num}`")
-    hist_data = pd.DataFrame({var_num: serie_num})
-    hist_chart = (
-        alt.Chart(hist_data)
-        .mark_bar()
-        .encode(
-            alt.X(var_num, bin=alt.Bin(maxbins=bins)),
-            y='count()',
-            tooltip=[
-                alt.Tooltip(var_num, bin=alt.Bin(maxbins=bins)),
-                alt.Tooltip('count()', title="Frecuencia")
-            ]
-        )
-        .properties(height=300)
+    st.subheader(f"Boxplot de `{var_num}`")
+box_data = pd.DataFrame({var_num: serie_num, "Variable": [var_num] * len(serie_num)})
+
+box_chart = (
+    alt.Chart(box_data)
+    .mark_boxplot(size=60)
+    .encode(
+        x=alt.X(var_num, type="quantitative"),
+        y=alt.Y("Variable", type="nominal", axis=None)  # Solo una fila, sin eje
     )
-    st.altair_chart(hist_chart, use_container_width=True)
+    .properties(width=500, height=150)  # Más ancho, menos alto
+)
+
+st.altair_chart(box_chart, use_container_width=True)
 
 # =========================
 # Matriz de Correlación
