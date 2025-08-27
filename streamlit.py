@@ -178,8 +178,7 @@ st.markdown("""
 # Controles superiores
 # =========================
 with st.container():
-    c1, c2, c3 = st.columns([1.5, 1, 1])
-
+    c1, c2 = st.columns([1.5, 1])  # solo dos columnas ahora
     with c1:
         var = st.selectbox(
             "Variable categórica",
@@ -187,13 +186,9 @@ with st.container():
             index=0,
             key="cat_var"
         )
-
     with c2:
         incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na")
         orden_alfabetico = st.checkbox("Orden alfabético", value=False, key="cat_orden")
-
-    #with c3:
-    #    metric_opt = st.radio("Métrica", options=["Porcentaje", "Conteo"], index=0, key="cat_metric")
 
 # =========================
 # Preparar datos
@@ -210,9 +205,8 @@ counts = vc.values
 data = pd.DataFrame({"Categoría": labels, "Conteo": counts})
 data["Porcentaje"] = (data["Conteo"] / data["Conteo"].sum() * 100).round(2)
 
-# Ordenar datos según métrica seleccionada
-#metric = "Porcentaje" if metric_opt == "Porcentaje" else "Conteo"
-data_plot = data.sort_values(metric, ascending=False).reset_index(drop=True)
+# Usamos Porcentaje como métrica por defecto
+data_plot = data.sort_values("Porcentaje", ascending=False).reset_index(drop=True)
 
 # Orden alfabético en tabla si se selecciona
 data_table = data_plot.copy()
@@ -237,7 +231,7 @@ with gcol:
         alt.Chart(data_plot)
         .mark_arc(outerRadius=110)
         .encode(
-            theta=alt.Theta(field=metric, type="quantitative"),
+            theta=alt.Theta(field="Porcentaje", type="quantitative"),  # usamos Porcentaje fijo
             color=alt.Color("Categoría:N", legend=alt.Legend(title="Categoría")),
             tooltip=[
                 alt.Tooltip("Categoría:N"),
@@ -248,7 +242,6 @@ with gcol:
         .properties(width="container", height=380)
     )
     st.altair_chart(chart, use_container_width=True)
-
 
 
 ##################### Numéricas #############################################
