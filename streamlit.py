@@ -192,8 +192,8 @@ with st.container():
         incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na")
         orden_alfabetico = st.checkbox("Orden alfabético", value=False, key="cat_orden")
 
-    with c3:
-        metric_opt = st.radio("Métrica", options=["Porcentaje", "Conteo"], index=0, key="cat_metric")
+    #with c3:
+    #    metric_opt = st.radio("Métrica", options=["Porcentaje", "Conteo"], index=0, key="cat_metric")
 
 # =========================
 # Preparar datos
@@ -253,8 +253,7 @@ with gcol:
 
 ##################### Numéricas #############################################
 
-
-
+st.markdown("""---""")
 # =========================
 # Análisis de variables numéricas
 # =========================
@@ -323,7 +322,7 @@ with g1:
         alt.Chart(box_data)
         .mark_boxplot()
         .encode(y=alt.Y(var_num, type="quantitative"))
-        .properties(height=300)
+        .properties(width=400, height=350)
     )
     st.altair_chart(box_chart, use_container_width=True)
 
