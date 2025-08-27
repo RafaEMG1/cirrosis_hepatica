@@ -195,6 +195,15 @@ with st.container():
         incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na")
         orden_alfabetico = st.checkbox("Orden alfabético", value=False, key="cat_orden")
 
+    with c3:
+        metric_opt = st.radio("Métrica", options=["Porcentaje", "Conteo"], index=0, key="cat_metric")
+        top_n = st.slider(
+            "Top N",
+            min_value=3, max_value=30, value=10, step=1,
+            help="Agrupa categorías poco frecuentes en 'Otros'",
+            key="cat_topn"
+        )
+
 # =========================
 # Preparar datos
 # =========================
