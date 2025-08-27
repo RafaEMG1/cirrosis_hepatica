@@ -211,7 +211,7 @@ data = pd.DataFrame({"Categoría": labels, "Conteo": counts})
 data["Porcentaje"] = (data["Conteo"] / data["Conteo"].sum() * 100).round(2)
 
 # Ordenar datos según métrica seleccionada
-metric = "Porcentaje" if metric_opt == "Porcentaje" else "Conteo"
+#metric = "Porcentaje" if metric_opt == "Porcentaje" else "Conteo"
 data_plot = data.sort_values(metric, ascending=False).reset_index(drop=True)
 
 # Orden alfabético en tabla si se selecciona
