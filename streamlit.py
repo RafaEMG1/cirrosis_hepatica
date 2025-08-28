@@ -159,7 +159,6 @@ with col2:
 
 
 
-
 #####--------------------------------------------------------------------------------------#########
 
 st.markdown("""### Análisis de variables categóricas""")
@@ -176,7 +175,7 @@ if not variables_categoricas:
 # =========================
 st.markdown("**Controles**")
 with st.container():
-    c1, c2, c3 = st.columns([1.6, 1.1, 1.3])
+    c1, c2 = st.columns([1.6, 1.1])
     with c1:
         var = st.selectbox(
             "Variable categórica",
@@ -193,13 +192,6 @@ with st.container():
     with c2:
         incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na_local")
         orden_alfabetico = st.checkbox("Ordenar alfabéticamente (solo tabla)", value=False, key="cat_orden_local")
-    with c3:
-        metric_opt = st.radio(
-            "Métrica del gráfico",
-            options=["Porcentaje", "Conteo"],
-            index=0,
-            key="cat_metric_local"
-        )
 
 # =========================
 # Preparar datos
@@ -231,9 +223,8 @@ if len(data) > top_n:
 else:
     data_plot = data.copy()
 
-# Orden por métrica elegida para el gráfico
-metric = "Porcentaje" if metric_opt == "Porcentaje" else "Conteo"
-data_plot = data_plot.sort_values(metric, ascending=False).reset_index(drop=True)
+# Orden por Conteo (siempre)
+data_plot = data_plot.sort_values("Conteo", ascending=False).reset_index(drop=True)
 
 # Orden opcional alfabético en la tabla (no afecta el gráfico)
 data_table = data_plot.copy()
@@ -258,7 +249,7 @@ with gcol:
         alt.Chart(data_plot)
         .mark_arc(outerRadius=110)
         .encode(
-            theta=alt.Theta(field=metric, type="quantitative"),
+            theta=alt.Theta(field="Conteo", type="quantitative"),
             color=alt.Color("Categoría:N", legend=alt.Legend(title="Categoría")),
             tooltip=[
                 alt.Tooltip("Categoría:N"),
@@ -283,9 +274,6 @@ with c3:
     st.metric("Incluye NaN", "Sí" if incluir_na else "No")
 
 st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
-
-
-
 
 
 
