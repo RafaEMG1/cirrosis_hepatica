@@ -176,60 +176,146 @@ safe_run("Resumen de datos", sec_resumen)
 # =========================
 # Sección: Análisis Categóricas
 # =========================
-def sec_analisis_cat():
-    section_header("Análisis de variables categóricas", "Selecciona una variable para ver su distribución.")
-    variables_categoricas = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
-    if not variables_categoricas:
-        st.warning("No se detectaron variables categóricas (object/category/bool) en `df`.")
+def sec_21_cat_selection():
+    section_header("2.1. Selección de características categóricas (Clasificación)")
+
+    # — 0) Validaciones
+    if TARGET_COL not in df.columns:
+        st.error("❌ No se encontró la columna objetivo 'Stage'.")
         return
 
-    card_controls("Controles de visualización")
-    with st.container():
-        c1, c2 = st.columns([1.5, 1])
-        with c1:
-            var = st.selectbox("Variable categórica", options=variables_categoricas, index=0, key="cat_var")
-        with c2:
-            incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na")
-            orden_alfabetico = st.checkbox("Orden alfabético", value=False, key="cat_orden")
+    y_raw = df[TARGET_COL]
+    cat_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
+    cat_cols = [c for c in cat_cols if c != TARGET_COL]
+    if not cat_cols:
+        st.info("No hay variables categóricas (excluyendo la objetivo).")
+        return
 
-    serie = df[var].copy()
-    if not incluir_na:
-        serie = serie.dropna()
-
-    vc = serie.value_counts(dropna=incluir_na)
-    labels = ["(NaN)" if pd.isna(x) else str(x) for x in vc.index.to_list()]
-    counts = vc.values
-    data = pd.DataFrame({"Categoría": labels, "Conteo": counts})
-    data["Porcentaje"] = (data["Conteo"] / data["Conteo"].sum() * 100).round(2)
-    data_plot = data.sort_values("Porcentaje", ascending=False).reset_index(drop=True)
-
-    data_table = data_plot.copy()
-    if orden_alfabetico:
-        data_table = data_table.sort_values("Categoría").reset_index(drop=True)
-
-    tcol, gcol = st.columns([1.1, 1.3], gap="large")
-    with tcol:
-        st.subheader(f"Distribución de `{var}`")
-        st.dataframe(data_table.assign(Porcentaje=data_table["Porcentaje"].round(2)), use_container_width=True)
-    with gcol:
-        st.subheader("Gráfico de torta")
-        chart = (
-            alt.Chart(data_plot)
-            .mark_arc(outerRadius=110)
-            .encode(
-                theta=alt.Theta(field="Porcentaje", type="quantitative"),
-                color=alt.Color("Categoría:N", legend=alt.Legend(title="Categoría")),
-                tooltip=[
-                    alt.Tooltip("Categoría:N"),
-                    alt.Tooltip("Conteo:Q", format=","),
-                    alt.Tooltip("Porcentaje:Q", format=".2f"),
-                ],
-            )
-            .properties(height=380)
+    # — 1) Controles
+    card_controls("Controles")
+    c1, c2, c3 = st.columns([2.2, 1, 1])
+    with c1:
+        cats_sel = st.multiselect(
+            "Categóricas a evaluar",
+            options=cat_cols,
+            default=cat_cols[:min(10, len(cat_cols))],
+            key="cat21_sel"
         )
-        st.altair_chart(chart, use_container_width=True)
+    with c2:
+        metodo = st.radio(
+            "Método",
+            ["Chi²", "Mutual Info"],
+            index=0,
+            horizontal=True,
+            key="cat21_m",
+        )
+    with c3:
+        topk = st.slider("Top K (visualización)", 3, 50, 10, 1, key="cat21_topk")
 
-safe_run("Análisis categóricas", sec_analisis_cat)
+    if not cats_sel:
+        st.warning("Selecciona al menos una variable categórica para evaluar.")
+        return
+
+    # — 2) Transformación: imputar + OneHot
+    X_cat = df[cats_sel].copy()
+    y_codes, _ = pd.factorize(y_raw)
+
+    cat_pipe = Pipeline([
+        ("imp", SimpleImputer(strategy="most_frequent")),
+        ("oh", OH_ENCODER)
+    ])
+    X_enc = cat_pipe.fit_transform(X_cat)
+    feat_names = cat_pipe.named_steps["oh"].get_feature_names_out(cats_sel)
+
+    # — 3) Scoring
+    if metodo == "Chi²":
+        scores = chi2(X_enc, y_codes)[0]  # (F, pval) -> tomamos F
+    else:
+        scores = mutual_info_classif(
+            X_enc, y_codes, discrete_features=True, random_state=42
+        )
+
+    # — 4) DataFrames base
+    sc_df = pd.DataFrame({
+        "feature_dummy": feat_names,
+        "score": scores
+    }).sort_values("score", ascending=False, ignore_index=True)
+    sc_df["variable"] = sc_df["feature_dummy"].str.split("_", n=1).str[0]
+
+    agg_df = sc_df.groupby("variable", as_index=False)["score"].sum() \
+                  .sort_values("score", ascending=False, ignore_index=True)
+
+    # — 5) % y % acumulado (helper)
+    def add_pct_cols(df_in: pd.DataFrame, sc_col="score", ndigits=2):
+        df_out = df_in.copy()
+        total = df_out[sc_col].sum()
+        df_out["%"] = (df_out[sc_col] / total * 100).round(ndigits) if total > 0 else 0.0
+        df_out["% acumulado"] = df_out["%"].cumsum().round(ndigits)
+        return df_out, float(total)
+
+    sc_df_show, total_sc = add_pct_cols(sc_df, "score")
+    agg_df_show, total_agg = add_pct_cols(agg_df, "score")
+
+    # — 6) Visualización con tabs
+    t1, t2 = st.tabs(["Detalle (dummies)", "Agregado (variables)"])
+
+    with t1:
+        st.dataframe(
+            arrow_safe(sc_df_show.loc[:, ["feature_dummy", "variable", "score", "%", "% acumulado"]].head(topk)),
+            use_container_width=True
+        )
+
+        # Regla vertical 90% (en eje X=score)
+        rule90_sc = alt.Chart(
+            pd.DataFrame({"x": [total_sc * 0.90]})
+        ).mark_rule(color="red", strokeDash=[6, 4]).encode(x="x:Q")
+
+        chart_sc = alt.Chart(sc_df_show.head(topk)).mark_bar().encode(
+            x=alt.X("score:Q", title="Score"),
+            y=alt.Y("feature_dummy:N", sort="-x", title="Dummy (col=valor)"),
+            tooltip=[
+                alt.Tooltip("feature_dummy:N", title="Dummy"),
+                alt.Tooltip("variable:N", title="Variable"),
+                alt.Tooltip("score:Q", format=".4f"),
+                alt.Tooltip("%:Q", title="%", format=".2f"),
+                alt.Tooltip("% acumulado:Q", format=".2f"),
+            ]
+        ).properties(height=min(34 * topk, 480))
+
+        st.altair_chart((chart_sc + rule90_sc), use_container_width=True)
+        st.caption("Línea roja: **90% del score acumulado** (en escala de score).")
+
+    with t2:
+        st.dataframe(
+            arrow_safe(agg_df_show.loc[:, ["variable", "score", "%", "% acumulado"]].head(topk)),
+            use_container_width=True
+        )
+
+        rule90_agg = alt.Chart(
+            pd.DataFrame({"x": [total_agg * 0.90]})
+        ).mark_rule(color="red", strokeDash=[6, 4]).encode(x="x:Q")
+
+        chart_agg = alt.Chart(agg_df_show.head(topk)).mark_bar().encode(
+            x=alt.X("score:Q", title="Score (sumado por variable)"),
+            y=alt.Y("variable:N", sort="-x", title="Variable"),
+            tooltip=[
+                alt.Tooltip("variable:N"),
+                alt.Tooltip("score:Q", format=".4f"),
+                alt.Tooltip("%:Q", title="%", format=".2f"),
+                alt.Tooltip("% acumulado:Q", format=".2f"),
+            ]
+        ).properties(height=min(34 * topk, 480))
+
+        st.altair_chart((chart_agg + rule90_agg), use_container_width=True)
+        st.caption("Línea roja: **90% del score acumulado** (en escala de score).")
+
+    # — 7) Pie de sección
+    dist = dict(pd.Series(y_raw).value_counts().sort_index())
+    st.caption(f"Objetivo: **{TARGET_COL}** · Clases: {dist}")
+
+# Ejecutar sección de forma segura
+safe_run("2.1 Selección categóricas", sec_21_cat_selection)
+
 
 # =========================
 # Sección: Análisis Numéricas
