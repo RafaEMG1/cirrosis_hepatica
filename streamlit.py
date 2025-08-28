@@ -1042,7 +1042,7 @@ if cat_sel:
             coords = mca_cirrosis.fs_r(N=3)
             y_train_align = y_train.iloc[:coords.shape[0]]
             fig_mca_sc, ax2 = plt.subplots(figsize=(6, 4))
-fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
+            fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
             fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
             sns.scatterplot(x=(coords.iloc[:, 0] if isinstance(coords, pd.DataFrame) else coords[:, 0]), y=(coords.iloc[:, 1] if isinstance(coords, pd.DataFrame) else coords[:, 1]), hue=y_train_align, alpha=0.7, ax=ax2)
             ax2.set_xlabel("Dimensión 1")
