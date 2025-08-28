@@ -1043,7 +1043,8 @@ if cat_sel:
             y_train_align = y_train.iloc[:coords.shape[0]]
             fig_mca_sc, ax2 = plt.subplots(figsize=(6, 4))
 fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
-            sns.scatterplot(x=coords[:, 0], y=coords[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
+            fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
+            sns.scatterplot(x=(coords.iloc[:, 0] if isinstance(coords, pd.DataFrame) else coords[:, 0]), y=(coords.iloc[:, 1] if isinstance(coords, pd.DataFrame) else coords[:, 1]), hue=y_train_align, alpha=0.7, ax=ax2)
             ax2.set_xlabel("Dimensión 1")
             ax2.set_ylabel("Dimensión 2")
             ax2.set_title("MCA: Dim 1 vs Dim 2")
@@ -1133,6 +1134,8 @@ else:
         x0 = X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else (X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 0])
         x1 = X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else (X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 1])
 fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
+        
+        fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
         
         sns.scatterplot(x=x0, y=x1, hue=y_train_align, alpha=0.7, ax=ax2)
 
@@ -1515,4 +1518,3 @@ st.markdown(f"""
 - Variables seleccionadas: {len(selected_names)}  
 - Nombres: {list(selected_names)}  
 """)
-
