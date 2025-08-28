@@ -93,18 +93,13 @@ texto = """
 
 st.markdown(texto)
 
+# --- Cargar dataset ---
+# URL del CSV en GitHub (raw)
+url = "https://raw.githubusercontent.com/DiegoNaranjo84/cirrosis_hepatica/main/liver_cirrhosis.csv"
 
-# Descargar el dataset
-path = kagglehub.dataset_download("aadarshvelu/liver-cirrhosis-stage-classification")
-print("Ruta local del dataset:", path)
+# Cargar el dataset
+df = pd.read_csv(url)
 
-# Ver los archivos del dataset cargado
-for dirname, _, filenames in os.walk(path):
-    for filename in filenames:
-        print(os.path.join(dirname, filename))
-
-file_path = os.path.join(path, "liver_cirrhosis.csv")
-df = pd.read_csv(file_path)
 
 # Filtrar solo columnas categóricas (tipo "object" o "category")
 cat_cols = df.select_dtypes(include=['object', 'category'])
@@ -406,15 +401,7 @@ st.markdown("""## 2.2. PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 3. RFE""")
 
-# --- Cargar dataset ---
-# URL del CSV en GitHub (raw)
-url = "https://raw.githubusercontent.com/DiegoNaranjo84/cirrosis_hepatica/main/liver_cirrhosis.csv"
 
-# Cargar el dataset
-df = pd.read_csv(url)
-
-st.write("Vista previa de los datos:")
-st.dataframe(df.head())
 
 # Convertir Stage a categórica
 df["Stage"] = df["Stage"].astype("category")
