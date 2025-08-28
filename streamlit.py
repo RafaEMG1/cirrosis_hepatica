@@ -105,9 +105,24 @@ DEBUG = st.sidebar.checkbox("🪲 Modo debug", value=False)
 
 INTRO = """
 ### **Variables:**
-* **N_Days** (días), **Status** (C/CL/D), **Drug** (D-penicilamina/placebo), **Age** (días), **Sex** (M/F),
-  **Ascites**, **Hepatomegaly**, **Spiders**, **Edema** (N/S/Y), **Bilirubin**, **Cholesterol**, **Albumin**,
-  **Copper**, **Alk_Phos**, **SGOT**, **Tryglicerides**, **Platelets**, **Prothrombin**, **Stage** (1–3).
+* **N_Days**: Número de días transcurridos entre el registro y la fecha más temprana entre fallecimiento, trasplante o análisis del estudio en 1986. 
+* **Status**: estado del paciente C (censurado), CL (censurado por tratamiento hepático) o D (fallecimiento). 
+* **Drug**: tipo de fármaco: D-penicilamina o placebo. 
+* **Age**: edad en días. * **Sex**: M (hombre) o F (mujer). 
+* **Ascites**: presencia de ascitis N (No) o Y (Sí). 
+* **Hepatomegaly**: presencia de hepatomegalia N (No) o Y (Sí). 
+* **Spiders**: presencia de aracnosis N (No) o Y (Sí). 
+* **Edema**: presencia de edema N (sin edema ni tratamiento diurético), S (edema presente sin diuréticos o resuelto con diuréticos) o Y (edema a pesar del tratamiento diurético). 
+* **Bilirubin**: bilirrubina sérica en mg/dl. 
+* **Cholesterol**: colesterol sérico en mg/dl. 
+* **Albumin**: albúmina en g/dl. 
+* **Copper**: cobre en orina en µg/día. 
+* **Alk_Phos**: fosfatasa alcalina en U/litro. 
+* **SGOT**: SGOT en U/ml. 
+* **Tryglicerides**: triglicéridos en mg/dl. 
+* **Platelets**: plaquetas por metro cúbico [ml/1000]. 
+* **Prothrombin**: tiempo de protrombina en segundos. 
+* **Stage**: estadio histológico de la enfermedad (1, 2 o 3).
 """
 st.markdown(INTRO)
 
@@ -521,6 +536,8 @@ def sec_24_modelos():
                "• `f1_macro` es robusta ante desbalance. • Solo las numéricas se estandarizan.")
 
 safe_run("2.4 Modelos", sec_24_modelos)
+
+
 
 # =========================
 # Modo debug (opcional)
