@@ -444,19 +444,19 @@ with g2:
 st.markdown("### Matriz de Correlación")
 correlacion = df.corr(numeric_only=True)
 
-fig, ax = plt.subplots(figsize=(5, 4))  # tamaño del gráfico más pequeño
+fig, ax = plt.subplots(figsize=(3, 2))  # tamaño del gráfico más pequeño
 sns.heatmap(
     correlacion,
     annot=True,
     cmap='coolwarm',
     fmt=".2f",
     ax=ax,
-    annot_kws={"size": 6},   # texto dentro de las celdas
-    cbar_kws={"shrink": 0.7} # barra de color más pequeña
+    annot_kws={"size": 4},   # texto dentro de las celdas
+    cbar_kws={"shrink": 0.5} # barra de color más pequeña
 )
-ax.set_title("Matriz de Correlación", fontsize=10)   # título más pequeño
-ax.tick_params(axis='x', labelsize=6)                # etiquetas X más pequeñas
-ax.tick_params(axis='y', labelsize=6)                # etiquetas Y más pequeñas
+ax.set_title("Matriz de Correlación", fontsize=7)   # título más pequeño
+ax.tick_params(axis='x', labelsize=4)                # etiquetas X más pequeñas
+ax.tick_params(axis='y', labelsize=4)                # etiquetas Y más pequeñas
 st.pyplot(fig)
 
 #________________________________________________________________________________________________________________________________________________________________
