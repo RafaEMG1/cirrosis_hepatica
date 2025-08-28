@@ -751,16 +751,170 @@ else:
 
 
 
+# __________________________________________________________________________________________________
+st.markdown("## 1.3. Unión de variables categóricas y numéricas")
+
+# === Dummies categóricas a mantener (de OHE) ===
+ohe_keep = [
+    "Hepatomegaly_N", "Hepatomegaly_Y",
+    "Status_D", "Status_C",           # si existe 'Status_CL' quedará fuera a propósito
+    "Edema_N", "Edema_S", "Edema_Y",
+    "Spiders_Y", "Spiders_N",
+]
+
+# --- Columnas de entrada ---
+num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+cat_cols = df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
+for L in (num_cols, cat_cols):
+    if "Stage" in L:
+        L.remove("Stage")
+
+X = df[num_cols + cat_cols].copy()
+y = df["Stage"].copy()
+
+# === Compatibilidad OHE (sparse_output vs sparse) ===
+try:
+    OHE = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+except TypeError:
+    OHE = OneHotEncoder(handle_unknown="ignore", sparse=False)
+
+# === set_config para conservar nombres ===
+set_config(transform_output="pandas")
+
+# --- Helpers seguros para columnas OHE con prefijos de ColumnTransformer/Pipeline ---
+def _endswith_any(colname: str, suffixes: list[str]) -> bool:
+    return any(str(colname).endswith(suf) for suf in suffixes)
+
+def select_keep_cols(X_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Selecciona columnas OHE de interés tolerando prefijos como 'cat__' o 'ohe__'.
+    Si falta alguna, la crea en 0 para no romper el flujo.
+    """
+    out_cols = []
+    for target in ohe_keep:
+        # Buscar columnas cuyo nombre termine exactamente en el dummy objetivo
+        matches = [c for c in X_df.columns if _endswith_any(c, [target])]
+        if matches:
+            out_cols.extend(matches)
+        else:
+            # crear columna faltante (sin prefijos)
+            X_df[target] = 0
+            out_cols.append(target)
+    # El orden de salida respeta ohe_keep
+    # si hubo múltiples 'matches' (ej. cat__ / ohe__), priorizamos el primero
+    # y dejamos cualquier duplicado al final de la lista
+    # (en la práctica no deben existir duplicados tras append controlado)
+    return X_df[out_cols]
+
+def _keep_feature_names(_, input_features):
+    # Nombres de salida: preservar exactamente ohe_keep para estabilidad
+    return np.array(ohe_keep, dtype=object)
+
+# === Pipelines ===
+num_pipe = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler())
+])
+
+cat_pipe = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="most_frequent")),
+    ("ohe", OHE),
+    ("select", FunctionTransformer(select_keep_cols, feature_names_out=_keep_feature_names))
+])
+
+preprocess = ColumnTransformer(
+    transformers=[
+        ("num", num_pipe, num_cols),
+        ("cat", cat_pipe, cat_cols)
+    ],
+    remainder="drop"
+)
+
+# === Split ===
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.33, random_state=42, stratify=y
+)
+
+# === Fit/Transform para ver forma y columnas ===
+X_train_t = preprocess.fit_transform(X_train)
+X_test_t  = preprocess.transform(X_test)
+
+st.markdown("**Vista rápida del dataset transformado**")
+c1, c2 = st.columns(2)
+with c1:
+    st.write("**Train shape**:", X_train_t.shape)
+    st.dataframe(X_train_t.head(8), use_container_width=True)
+with c2:
+    st.write("**Test shape**:", X_test_t.shape)
+    st.dataframe(X_test_t.head(8), use_container_width=True)
 
 
 
-# ________________________________________________________________________________________________________________________________________________________________
-st.markdown("""## 1.3. Unión de variables categóricas y númericas""")
+# __________________________________________________________________________________________________
+st.markdown("## 1.4. Modelos y comparación")
 
+def eval_model(pipe, Xtr, ytr, Xte, yte):
+    pipe.fit(Xtr, ytr)
+    ypred = pipe.predict(Xte)
+    acc  = accuracy_score(yte, ypred)
+    f1m  = f1_score(yte, ypred, average="macro")
+    bacc = balanced_accuracy_score(yte, ypred)
+    cm   = pd.crosstab(yte, ypred, rownames=["true"], colnames=["pred"])
+    rep  = classification_report(yte, ypred, digits=3, output_dict=False)
+    return acc, f1m, bacc, cm, rep
 
+# === Definición de modelos ===
+models = {
+    "Softmax (LogReg)": LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=2000, n_jobs=None),
+    "SVC (RBF)":        SVC(kernel='rbf', C=1.0, gamma='scale', random_state=42),
+    "Decision Tree":    DecisionTreeClassifier(random_state=42),
+    "Random Forest":    RandomForestClassifier(
+        n_estimators=300, max_depth=None, min_samples_split=2, min_samples_leaf=1,
+        max_features="sqrt", class_weight="balanced", random_state=42, n_jobs=-1
+    ),
+}
 
+# === Entrenar, evaluar y mostrar ===
+result_rows = []
+tabs = st.tabs(list(models.keys()))
+for (name, base_model), tab in zip(models.items(), tabs):
+    with tab:
+        pipe = Pipeline(steps=[
+            ("preprocess", preprocess),
+            ("clf", base_model)
+        ])
+        acc, f1m, bacc, cm, rep = eval_model(pipe, X_train, y_train, X_test, y_test)
 
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Accuracy", f"{acc*100:.2f}%")
+        c2.metric("F1-macro", f"{f1m:.3f}")
+        c3.metric("Balanced Acc.", f"{bacc:.3f}")
 
+        st.markdown("**Matriz de confusión**")
+        st.dataframe(cm, use_container_width=True)
+
+        st.markdown("**Classification report**")
+        st.text(rep)
+
+        result_rows.append({
+            "Modelo": name, "Accuracy": acc, "F1-macro": f1m, "Balanced Acc.": bacc
+        })
+
+# === Resumen comparativo ===
+res_df = pd.DataFrame(result_rows).sort_values(by="Accuracy", ascending=False)
+st.markdown("### 📊 Comparación de modelos (ordenado por Accuracy)")
+st.dataframe(res_df.assign(
+    Accuracy=lambda d: (d["Accuracy"]*100).round(2),
+    **{"F1-macro": lambda d: d["F1-macro"].round(3),
+       "Balanced Acc.": lambda d: d["Balanced Acc."].round(3)}
+), use_container_width=True)
+
+# === Conclusión automática corta ===
+best = res_df.iloc[0]
+st.info(
+    f"**Mejor modelo:** {best['Modelo']} — Accuracy={best['Accuracy']*100:.2f}% | "
+    f"F1-macro={best['F1-macro']:.3f} | Balanced Acc.={best['Balanced Acc.']:.3f}"
+)
 
 
 
