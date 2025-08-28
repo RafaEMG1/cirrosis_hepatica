@@ -442,7 +442,7 @@ models = {
 
 # ---- Control: seleccionar 1 modelo (por defecto Random Forest) ----
 model_names = list(models.keys())
-default_index = model_names.index("Random Forest") if "Random Forest" in model_names else 0
+default_index = model_names.index("Decision Tree") if "Random Forest" in model_names else 0
 modelo_elegido = st.selectbox("Modelo a ejecutar", options=model_names, index=default_index, key="rfe_modelo")
 model = models[modelo_elegido]
 
