@@ -1288,7 +1288,7 @@ modelo_24 = build_model(model_name_24)
 
 # --- CV estratificado para mayor estabilidad
 cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-scores = safe_cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
+scores = safe_cross_val_score(modelo_24, X_train_final, y_train, scoring="accuracy", n_jobs=-1)
 
 st.subheader("Resultados de validación cruzada")
 st.write(f"**Modelo:** {model_name_24}")
