@@ -1243,7 +1243,41 @@ modelo_24 = build_model(model_name_24)
 
 # --- CV estratificado para mayor estabilidad
 cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-scores = cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
+#scores = cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
+from sklearn.model_selection import StratifiedKFold, cross_validate
+import numpy as np
+import pandas as pd
+
+# 0) Alinear X e y y eliminar filas con NaN (evita fallos por fold)
+_xy = pd.concat([X_train_final, y_train], axis=1)
+_xy = _xy.dropna(axis=0)  # si tu pipeline ya imputa, esto casi no debería borrar
+
+X_cv = _xy[X_train_final.columns]
+y_cv = _xy[y_train.name]
+
+# 1) Usar validación estratificada (mantiene clases en cada fold)
+cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+# 2) cross_validate con manejo de errores (no revienta; marca NaN en el fold problemático)
+cv_out = cross_validate(
+    modelo_24,
+    X_cv, y_cv,
+    cv=cv5,
+    scoring="accuracy",
+    n_jobs=-1,
+    error_score=np.nan,         # <- clave para no romper y poder inspeccionar
+    return_estimator=False
+)
+
+scores = cv_out["test_score"]
+scores_validos = scores[~np.isnan(scores)]
+
+if len(scores_validos) == 0:
+    st.error("La validación cruzada falló en todos los folds. Revisa: (1) que no haya NaN sin imputar, (2) que cada clase tenga ≥2 muestras, (3) que el preprocesador sea compatible con todas las columnas.")
+else:
+    st.write(f"Accuracy CV (media ± std): {np.mean(scores_validos):.3f} ± {np.std(scores_validos):.3f}")
+
+
 
 st.subheader("Resultados de validación cruzada")
 st.write(f"**Modelo:** {model_name_24}")
