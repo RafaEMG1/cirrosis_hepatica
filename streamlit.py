@@ -279,6 +279,7 @@ st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categor
 
 #####--------------------------------------------------------------------------------------#########
 
+#####--------------------------------------------------------------------------------------#########
 
 # =========================
 # Análisis de variables numéricas
@@ -293,12 +294,29 @@ if not variables_numericas:
     st.warning("No se detectaron variables numéricas en `df`.")
     st.stop()
 
-# Controles (Sidebar)
-st.sidebar.header("Controles - Numéricas")
-var_num = st.sidebar.selectbox("Variable numérica", options=variables_numericas, index=0, key="num_var")
-bins = st.sidebar.slider("Número de bins (histograma)", min_value=5, max_value=100, value=30, step=5)
+# =========================
+# Controles dentro de la sección
+# =========================
+st.markdown("**Controles**")
+with st.container():
+    c1, c2 = st.columns([1.6, 1.4])
+    with c1:
+        var_num = st.selectbox(
+            "Variable numérica",
+            options=variables_numericas,
+            index=0,
+            key="num_var_local"
+        )
+    with c2:
+        bins = st.slider(
+            "Número de bins (histograma)",
+            min_value=5, max_value=100, value=30, step=5,
+            key="num_bins_local"
+        )
 
+# =========================
 # Preparar serie
+# =========================
 serie_num = df[var_num].dropna()
 
 # =========================
@@ -322,13 +340,16 @@ with c5:
 g1, g2 = st.columns(2, gap="large")
 
 with g1:
-    st.subheader(f"Boxplot de `{var_num}`")
+    st.subheader(f"Boxplot de `{var_num}` (vertical)")
     box_data = pd.DataFrame({var_num: serie_num})
     box_chart = (
         alt.Chart(box_data)
-        .mark_boxplot()
-        .encode(y=alt.Y(var_num, type="quantitative"))
-        .properties(height=300)
+        .mark_boxplot(size=80)  # ancho de la caja más grande
+        .encode(
+            y=alt.Y(var_num, type="quantitative", title=var_num),
+            x=alt.X("count()", title="")  # Para hacerlo vertical
+        )
+        .properties(height=350)
     )
     st.altair_chart(box_chart, use_container_width=True)
 
@@ -343,20 +364,20 @@ with g2:
             y='count()',
             tooltip=[alt.Tooltip(var_num, bin=alt.Bin(maxbins=bins)), alt.Tooltip('count()', title="Frecuencia")]
         )
-        .properties(height=300)
+        .properties(height=350)
     )
     st.altair_chart(hist_chart, use_container_width=True)
 
-
+# =========================
+# Matriz de Correlación
+# =========================
 st.markdown("### Matriz de Correlación")
-
 correlacion = df.corr(numeric_only=True)
-
 fig, ax = plt.subplots(figsize=(10, 8))
 sns.heatmap(correlacion, annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
 ax.set_title("Matriz de Correlación")
+st.pyplot(fig)
 
-st.pyplot(fig) 
 
 
 # ________________________________________________________________________________________________________________________________________________________________
