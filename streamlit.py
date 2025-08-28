@@ -439,14 +439,24 @@ with g2:
     st.altair_chart(hist_chart, use_container_width=True)
 
 # =========================
-# Matriz de Correlación
+# Matriz de Correlación (figura y texto reducidos)
 # =========================
 st.markdown("### Matriz de Correlación")
 correlacion = df.corr(numeric_only=True)
-fig, ax = plt.subplots(figsize=(5, 4)) 
-sns.heatmap(correlacion, annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
-ax.set_title("Matriz de Correlación")
+
+fig, ax = plt.subplots(figsize=(3, 2))  # tamaño del gráfico
+sns.heatmap(
+    correlacion,
+    annot=True,
+    cmap='coolwarm',
+    fmt=".2f",
+    ax=ax,
+    annot_kws={"size": 6}  # tamaño del texto
+)
+ax.set_title("Matriz de Correlación", fontsize=10)  # título más pequeño
+ax.tick_params(axis='both', labelsize=8)  # etiquetas más pequeñas
 st.pyplot(fig)
+
 #________________________________________________________________________________________________________________________________________________________________
 
 
