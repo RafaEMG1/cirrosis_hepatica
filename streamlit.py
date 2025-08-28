@@ -57,7 +57,7 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import cross_val_score
 import streamlit as st
 from graphviz import Digraph
-
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import warnings
