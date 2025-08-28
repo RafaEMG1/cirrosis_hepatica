@@ -47,6 +47,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from scipy.stats import uniform
 from scipy.stats import randint
+from sklearn.compose import ColumnTransformer
 
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
