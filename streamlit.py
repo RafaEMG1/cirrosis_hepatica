@@ -1133,7 +1133,7 @@ else:
 
         x0 = X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else (X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 0])
         x1 = X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else (X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 1])
-fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
+        fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
         
         fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
         
