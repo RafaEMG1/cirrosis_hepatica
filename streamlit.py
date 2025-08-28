@@ -439,7 +439,7 @@ with g2:
     st.altair_chart(hist_chart, use_container_width=True)
 
 # =========================
-# Matriz de Correlación 
+# Matriz de Correlación (ajustada a la altura)
 # =========================
 st.markdown("### Matriz de Correlación")
 correlacion = df.corr(numeric_only=True)
@@ -447,10 +447,10 @@ correlacion = df.corr(numeric_only=True)
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Calcular ancho dinámico según número de columnas
-n_cols = correlacion.shape[1]
-fig_w = min(1.2 * n_cols, 18)  # máx 18 pulgadas de ancho
-fig_h = fig_w * 0.6            # proporción para altura
+# Calcular alto dinámico según número de filas
+n_rows = correlacion.shape[0]
+fig_h = min(0.5 * n_rows, 12)  # 0.5 pulgadas por fila, máx 12
+fig_w = fig_h * 1.2            # mantener buena proporción
 
 with sns.plotting_context("notebook", font_scale=0.6):
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
@@ -476,7 +476,7 @@ with sns.plotting_context("notebook", font_scale=0.6):
     cbar.ax.tick_params(labelsize=6)
 
     fig.tight_layout(pad=0.5)
-    st.pyplot(fig, use_container_width=True)  # <- se adapta al ancho del contenedor
+    st.pyplot(fig, use_container_width=True)  # usa todo el ancho del contenedor
 
 #________________________________________________________________________________________________________________________________________________________________
 
