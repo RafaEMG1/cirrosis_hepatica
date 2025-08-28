@@ -439,7 +439,7 @@ with g2:
     st.altair_chart(hist_chart, use_container_width=True)
 
 # =========================
-# Matriz de Correlación (ajustada a la altura)
+# Matriz de Correlación (media pantalla)
 # =========================
 st.markdown("### Matriz de Correlación")
 correlacion = df.corr(numeric_only=True)
@@ -447,10 +447,8 @@ correlacion = df.corr(numeric_only=True)
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Calcular alto dinámico según número de filas
-n_rows = correlacion.shape[0]
-fig_h = min(0.5 * n_rows, 12)  # 0.5 pulgadas por fila, máx 12
-fig_w = fig_h * 1.2            # mantener buena proporción
+# Tamaño fijo para ocupar ~media pantalla
+fig_w, fig_h = 8, 4  # ancho=8, alto=4 pulgadas (antes era más alto)
 
 with sns.plotting_context("notebook", font_scale=0.6):
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
@@ -460,23 +458,23 @@ with sns.plotting_context("notebook", font_scale=0.6):
         fmt=".2f",
         cmap="coolwarm",
         ax=ax,
-        annot_kws={"size": 6},
-        cbar_kws={"shrink": 0.5},
+        annot_kws={"size": 5},       # texto más pequeño
+        cbar_kws={"shrink": 0.4},    # barra de color más compacta
         linewidths=0.3,
         linecolor="white"
     )
 
-    # Ajustes de texto y títulos
-    ax.set_title("Matriz de Correlación", fontsize=10, pad=6)
-    ax.tick_params(axis="x", labelsize=6, rotation=45)
-    ax.tick_params(axis="y", labelsize=6)
+    # Título y etiquetas pequeñas
+    ax.set_title("Matriz de Correlación", fontsize=9, pad=4)
+    ax.tick_params(axis="x", labelsize=5, rotation=45)
+    ax.tick_params(axis="y", labelsize=5)
 
-    # Ajustar tamaño de la barra de color y sus etiquetas
+    # Barra de color con etiquetas pequeñas
     cbar = hm.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=6)
+    cbar.ax.tick_params(labelsize=5)
 
     fig.tight_layout(pad=0.5)
-    st.pyplot(fig, use_container_width=True)  # usa todo el ancho del contenedor
+    st.pyplot(fig, use_container_width=True)  # Se ajusta al ancho del contenedor
 
 #________________________________________________________________________________________________________________________________________________________________
 
