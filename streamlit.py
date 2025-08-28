@@ -39,7 +39,9 @@ from sklearn.feature_selection import RFE
 from sklearn.feature_selection import RFECV
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
-
+import mca
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.linear_model import LogisticRegression
@@ -637,9 +639,7 @@ st.write(f"Varianza explicada acumulada por estas componentes: {sum(pca_80.expla
 
 
 # ________________________________________________________________________________________________________________________________________________________________
-st.markdown("""# 3. RFE""")
 
-# ______________________________________________________
 
 st.markdown("""# 3. RFE""")
 
