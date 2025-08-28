@@ -814,7 +814,7 @@ def get_model_and_searchspace(name: str):
             "max_depth": randint(3, 20),
             "min_samples_split": randint(2, 10),
             #"min_samples_leaf": randint(1, 20),
-            "criterion": ["gini", "entropy", "log_loss"],
+            "criterion": ["gini", "entropy"],
         }
         return model, param_dist, "accuracy"
     if name == "Random Forest":
