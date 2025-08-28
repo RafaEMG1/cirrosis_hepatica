@@ -647,49 +647,85 @@ else:
         )
 
 # ______________________________________________________________________________________________________
-st.markdown("""## 2.3. Concatenar las dos matrices""")
+# ______________________________________________________________________________________________________
+st.markdown("## 2.3. Concatenar las dos matrices")
 
-# Datos numéricos
+# ========= 0) Preparación: columnas y split común por índices =========
+y_full = df["Stage"]
+num_cols = df.select_dtypes(include=["number"]).columns.tolist()
+cat_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
 
-# Escalar variables numéricas del entrenamiento
+# Asegura que 'Stage' no esté en cat_cols
+cat_cols = [c for c in cat_cols if c != "Stage"]
+
+# Split por índices para alinear filas entre numéricas y categóricas
+idx_train, idx_test = train_test_split(
+    df.index, stratify=y_full, test_size=0.33, random_state=1
+)
+y_train = y_full.loc[idx_train]
+y_test  = y_full.loc[idx_test]
+
+X_num_train = df.loc[idx_train, num_cols]
+X_num_test  = df.loc[idx_test,  num_cols]
+
+X_cat_train = df.loc[idx_train, cat_cols]
+X_cat_test  = df.loc[idx_test,  cat_cols]
+
+# ========= 1) PCA sobre numéricas =========
 scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)  # fit solo al train
+X_train_scaled = scaler.fit_transform(X_num_train)  # fit solo con train
+X_test_scaled  = scaler.transform(X_num_test)       # transform en test
 
-# Ajustar PCA al conjunto de entrenamiento
 pca = PCA(n_components=8)
 X_train_pca = pca.fit_transform(X_train_scaled)
+X_test_pca  = pca.transform(X_test_scaled)
 
-# Escalar el conjunto de prueba con el mismo scaler del entrenamiento
-X_test_scaled = scaler.transform(X_test)  # sin fit
+# ========= 2) MCA sobre categóricas con columnas alineadas =========
+# Dummies en train y test, y alineación de columnas
+X_train_encoded = pd.get_dummies(X_cat_train, drop_first=False)
+X_test_encoded  = pd.get_dummies(X_cat_test,  drop_first=False)
 
-# Aplicar PCA ya entrenado al conjunto de prueba
-X_test_pca = pca.transform(X_test_scaled)  # sin fit
+# Alinear columnas de test a las de train (rellenar faltantes con 0)
+X_test_encoded = X_test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
 
-# Datos categóricos
+# Modelo prince.MCA (evita sombrear el import `mca`)
+mca_pr = prince.MCA(n_components=6, random_state=42)
+mca_pr = mca_pr.fit(X_train_encoded)
 
-# Fit solo con entrenamiento
-mca = prince.MCA(n_components=6, random_state=42)
-mca = mca.fit(X_train_encoded)
+X_train_mca = mca_pr.transform(X_train_encoded)
+X_test_mca  = mca_pr.transform(X_test_encoded)
 
-# Transformación sobre entrenamiento y prueba
-X_train_mca = mca.transform(X_train_encoded)
-X_test_mca = mca.transform(X_test_encoded)
+# ========= 3) DataFrames con índices y nombres de columnas =========
+X_train_pca_df = pd.DataFrame(
+    X_train_pca, index=idx_train, columns=[f"PCA_{i+1}" for i in range(X_train_pca.shape[1])]
+)
+X_test_pca_df = pd.DataFrame(
+    X_test_pca, index=idx_test, columns=[f"PCA_{i+1}" for i in range(X_test_pca.shape[1])]
+)
 
-X_train_pca_df = pd.DataFrame(X_train_pca, columns=[f'PCA_{i+1}' for i in range(X_train_pca.shape[1])])
-X_train_mca_df = pd.DataFrame(X_train_mca.values, columns=[f'MCA_{i+1}' for i in range(X_train_mca.shape[1])])
+# prince devuelve DataFrame; asegurar índices correctos y nombres
+X_train_mca_df = pd.DataFrame(
+    X_train_mca.values, index=idx_train, columns=[f"MCA_{i+1}" for i in range(X_train_mca.shape[1])]
+)
+X_test_mca_df = pd.DataFrame(
+    X_test_mca.values, index=idx_test, columns=[f"MCA_{i+1}" for i in range(X_test_mca.shape[1])]
+)
 
+# ========= 4) Concatenación final =========
 X_train_final = pd.concat([X_train_pca_df, X_train_mca_df], axis=1)
+X_test_final  = pd.concat([X_test_pca_df,  X_test_mca_df],  axis=1)
 
-# para el conjunto de prueba
-
-X_test_pca_df = pd.DataFrame(X_test_pca, columns=[f'PCA_{i+1}' for i in range(X_test_pca.shape[1])])
-X_test_mca_df = pd.DataFrame(X_test_mca.values, columns=[f'MCA_{i+1}' for i in range(X_test_mca.shape[1])])
-
-X_test_final = pd.concat([X_test_pca_df, X_test_mca_df], axis=1)
-
-X_test_final.info()
-st.subheader("Dataset final con variables PCA + MCA (Test Set)")
-st.dataframe(X_test_final.head(10))  # Primeras 10 filas
+# ========= 5) Vista rápida =========
+cA, cB = st.columns(2)
+with cA:
+    st.subheader("Train: PCA+MCA (shape)")
+    st.write(X_train_final.shape)
+    st.dataframe(X_train_final.head(10))
+with cB:
+    st.subheader("Test: PCA+MCA (shape)")
+    st.write(X_test_final.shape)
+    st.dataframe(X_test_final.head(10))
+# ______________________________________________________________________________________________________
 
 # ______________________________________________________________________________________________________
 
