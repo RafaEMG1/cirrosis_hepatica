@@ -8,6 +8,7 @@ import kagglehub
 import os
 import altair as alt
 import plotly.express as px
+import prince
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
