@@ -108,7 +108,8 @@ INTRO = """
 * **N_Days**: Número de días transcurridos entre el registro y la fecha más temprana entre fallecimiento, trasplante o análisis del estudio en 1986. 
 * **Status**: estado del paciente C (censurado), CL (censurado por tratamiento hepático) o D (fallecimiento). 
 * **Drug**: tipo de fármaco: D-penicilamina o placebo. 
-* **Age**: edad en días. * **Sex**: M (hombre) o F (mujer). 
+* **Age**: edad en días. 
+* **Sex**: M (hombre) o F (mujer). 
 * **Ascites**: presencia de ascitis N (No) o Y (Sí). 
 * **Hepatomegaly**: presencia de hepatomegalia N (No) o Y (Sí). 
 * **Spiders**: presencia de aracnosis N (No) o Y (Sí). 
