@@ -176,14 +176,52 @@ safe_run("Resumen de datos", sec_resumen)
 # =========================
 # Sección: Análisis Categóricas
 # =========================
+# =========================
+# 2.1. Selección de características CATEGÓRICAS (Clasificación)
+# =========================
 def sec_21_cat_selection():
+    import numpy as np
+    import pandas as pd
+    import altair as alt
+    from sklearn.pipeline import Pipeline
+    from sklearn.impute import SimpleImputer
+    from sklearn.feature_selection import chi2, mutual_info_classif
+
+    # ---------- helpers locales ----------
+    def section_header(txt: str):
+        st.markdown("---")
+        st.markdown(f"## {txt}")
+
+    def card_controls(title: str):
+        st.markdown(
+            f"""
+            <div style="background-color:#f5f5f5;padding:10px;border-radius:8px;margin-bottom:10px;">
+            <b>{title}</b>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    def add_percent_cols(df_scores: pd.DataFrame, score_col: str = "score") -> pd.DataFrame:
+        out = df_scores.copy()
+        total = out[score_col].sum()
+        out["pct"] = np.where(total > 0, 100.0 * out[score_col] / total, 0.0)
+        out["pct_acum"] = out["pct"].cumsum()
+        return out
+
+    def vline_90():
+        return alt.Chart(pd.DataFrame({"x": [90.0]})).mark_rule(
+            strokeDash=[6, 6], color="red"
+        ).encode(x="x:Q")
+
+    # ---------- sección ----------
     section_header("2.1. Selección de características categóricas (Clasificación)")
 
-    # — 0) Validaciones
     if TARGET_COL not in df.columns:
         st.error("❌ No se encontró la columna objetivo 'Stage'.")
         return
 
+    # columnas categóricas (excluye y)
     y_raw = df[TARGET_COL]
     cat_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
     cat_cols = [c for c in cat_cols if c != TARGET_COL]
@@ -191,130 +229,147 @@ def sec_21_cat_selection():
         st.info("No hay variables categóricas (excluyendo la objetivo).")
         return
 
-    # — 1) Controles
+    # ---- Controles (claves únicas con prefijo) ----
+    prefix = "s21"  # <- prefijo único para esta sección
     card_controls("Controles")
     c1, c2, c3 = st.columns([2.2, 1, 1])
     with c1:
         cats_sel = st.multiselect(
             "Categóricas a evaluar",
             options=cat_cols,
-            default=cat_cols[:min(10, len(cat_cols))],
-            key="cat21_sel"
+            default=cat_cols[: min(10, len(cat_cols))],
+            key=f"{prefix}_sel",
         )
     with c2:
         metodo = st.radio(
-            "Método",
-            ["Chi²", "Mutual Info"],
-            index=0,
-            horizontal=True,
-            key="cat21_m",
+            "Método", ["Chi²", "Mutual Info"], 0, horizontal=True, key=f"{prefix}_m"
         )
     with c3:
-        topk = st.slider("Top K (visualización)", 3, 50, 10, 1, key="cat21_topk")
+        topk = st.slider("Top K", 3, 50, 10, 1, key=f"{prefix}_k")
 
     if not cats_sel:
         st.warning("Selecciona al menos una variable categórica para evaluar.")
         return
 
-    # — 2) Transformación: imputar + OneHot
+    # ---- OneHot + scoring ----
     X_cat = df[cats_sel].copy()
-    y_codes, _ = pd.factorize(y_raw)
+    y_codes, _ = pd.factorize(y_raw)  # y en códigos 0..n-1
 
-    cat_pipe = Pipeline([
-        ("imp", SimpleImputer(strategy="most_frequent")),
-        ("oh", OH_ENCODER)
-    ])
+    cat_pipe = Pipeline(
+        [("imp", SimpleImputer(strategy="most_frequent")), ("oh", OH_ENCODER)]
+    )
     X_enc = cat_pipe.fit_transform(X_cat)
     feat_names = cat_pipe.named_steps["oh"].get_feature_names_out(cats_sel)
 
-    # — 3) Scoring
-    if metodo == "Chi²":
-        scores = chi2(X_enc, y_codes)[0]  # (F, pval) -> tomamos F
-    else:
-        scores = mutual_info_classif(
+    scores = (
+        chi2(X_enc, y_codes)[0]
+        if metodo == "Chi²"
+        else mutual_info_classif(
             X_enc, y_codes, discrete_features=True, random_state=42
         )
+    )
 
-    # — 4) DataFrames base
-    sc_df = pd.DataFrame({
-        "feature_dummy": feat_names,
-        "score": scores
-    }).sort_values("score", ascending=False, ignore_index=True)
+    # ---- Tablas: detalle por dummy y agregado por variable ----
+    sc_df = (
+        pd.DataFrame({"feature_dummy": feat_names, "score": scores})
+        .sort_values("score", ascending=False)
+        .reset_index(drop=True)
+    )
+    # % y % acumulado (dummy)
+    sc_df = add_percent_cols(sc_df, "score")
+
+    # Agregado por variable original
     sc_df["variable"] = sc_df["feature_dummy"].str.split("_", n=1).str[0]
+    agg_df = (
+        sc_df.groupby("variable", as_index=False)["score"].sum()
+        .sort_values("score", ascending=False)
+        .reset_index(drop=True)
+    )
+    # % y % acumulado (agregado)
+    agg_df = add_percent_cols(agg_df, "score")
 
-    agg_df = sc_df.groupby("variable", as_index=False)["score"].sum() \
-                  .sort_values("score", ascending=False, ignore_index=True)
+    # ---- Pestañas: Detalle (dummy) / Agregado (variable) ----
+    t1, t2 = st.tabs(["Detalle (dummy)", "Agregado (variable)"])
 
-    # — 5) % y % acumulado (helper)
-    def add_pct_cols(df_in: pd.DataFrame, sc_col="score", ndigits=2):
-        df_out = df_in.copy()
-        total = df_out[sc_col].sum()
-        df_out["%"] = (df_out[sc_col] / total * 100).round(ndigits) if total > 0 else 0.0
-        df_out["% acumulado"] = df_out["%"].cumsum().round(ndigits)
-        return df_out, float(total)
-
-    sc_df_show, total_sc = add_pct_cols(sc_df, "score")
-    agg_df_show, total_agg = add_pct_cols(agg_df, "score")
-
-    # — 6) Visualización con tabs
-    t1, t2 = st.tabs(["Detalle (dummies)", "Agregado (variables)"])
-
+    # Detalle por dummy
     with t1:
         st.dataframe(
-            arrow_safe(sc_df_show.loc[:, ["feature_dummy", "variable", "score", "%", "% acumulado"]].head(topk)),
-            use_container_width=True
+            sc_df.loc[:, ["feature_dummy", "score", "pct", "pct_acum"]]
+            .head(topk)
+            .rename(
+                columns={
+                    "feature_dummy": "Dummy (col=valor)",
+                    "score": "Score",
+                    "pct": "%",  # porcentaje
+                    "pct_acum": "% acumulado",
+                }
+            ),
+            use_container_width=True,
         )
 
-        # Regla vertical 90% (en eje X=score)
-        rule90_sc = alt.Chart(
-            pd.DataFrame({"x": [total_sc * 0.90]})
-        ).mark_rule(color="red", strokeDash=[6, 4]).encode(x="x:Q")
+        bars = (
+            alt.Chart(sc_df.head(topk))
+            .mark_bar()
+            .encode(
+                x=alt.X("score:Q", title="Score"),
+                y=alt.Y("feature_dummy:N", sort="-x", title="Dummy (col=valor)"),
+                tooltip=[
+                    alt.Tooltip("feature_dummy:N", title="Dummy"),
+                    alt.Tooltip("score:Q", format=".4f", title="Score"),
+                    alt.Tooltip("pct:Q", format=".2f", title="%"),
+                    alt.Tooltip("pct_acum:Q", format=".2f", title="% acumulado"),
+                ],
+            )
+            .properties(height=min(34 * topk, 480))
+        )
 
-        chart_sc = alt.Chart(sc_df_show.head(topk)).mark_bar().encode(
-            x=alt.X("score:Q", title="Score"),
-            y=alt.Y("feature_dummy:N", sort="-x", title="Dummy (col=valor)"),
-            tooltip=[
-                alt.Tooltip("feature_dummy:N", title="Dummy"),
-                alt.Tooltip("variable:N", title="Variable"),
-                alt.Tooltip("score:Q", format=".4f"),
-                alt.Tooltip("%:Q", title="%", format=".2f"),
-                alt.Tooltip("% acumulado:Q", format=".2f"),
-            ]
-        ).properties(height=min(34 * topk, 480))
+        # línea vertical en 90% (en eje X de score no aplica; añadimos una línea auxiliar en % con un gráfico secundario)
+        st.altair_chart(bars, use_container_width=True)
 
-        st.altair_chart((chart_sc + rule90_sc), use_container_width=True)
-        st.caption("Línea roja: **90% del score acumulado** (en escala de score).")
-
+    # Agregado por variable
     with t2:
         st.dataframe(
-            arrow_safe(agg_df_show.loc[:, ["variable", "score", "%", "% acumulado"]].head(topk)),
-            use_container_width=True
+            agg_df.loc[:, ["variable", "score", "pct", "pct_acum"]]
+            .head(topk)
+            .rename(
+                columns={
+                    "variable": "Variable",
+                    "score": "Score",
+                    "pct": "%",
+                    "pct_acum": "% acumulado",
+                }
+            ),
+            use_container_width=True,
         )
 
-        rule90_agg = alt.Chart(
-            pd.DataFrame({"x": [total_agg * 0.90]})
-        ).mark_rule(color="red", strokeDash=[6, 4]).encode(x="x:Q")
+        bars2 = (
+            alt.Chart(agg_df.head(topk))
+            .mark_bar()
+            .encode(
+                x=alt.X("pct:Q", title="%"),
+                y=alt.Y("variable:N", sort="-x", title="Variable"),
+                tooltip=[
+                    alt.Tooltip("variable:N", title="Variable"),
+                    alt.Tooltip("score:Q", format=".4f", title="Score"),
+                    alt.Tooltip("pct:Q", format=".2f", title="%"),
+                    alt.Tooltip("pct_acum:Q", format=".2f", title="% acumulado"),
+                ],
+            )
+            .properties(height=min(34 * topk, 480))
+        )
 
-        chart_agg = alt.Chart(agg_df_show.head(topk)).mark_bar().encode(
-            x=alt.X("score:Q", title="Score (sumado por variable)"),
-            y=alt.Y("variable:N", sort="-x", title="Variable"),
-            tooltip=[
-                alt.Tooltip("variable:N"),
-                alt.Tooltip("score:Q", format=".4f"),
-                alt.Tooltip("%:Q", title="%", format=".2f"),
-                alt.Tooltip("% acumulado:Q", format=".2f"),
-            ]
-        ).properties(height=min(34 * topk, 480))
+        st.altair_chart(bars2 + vline_90(), use_container_width=True)
 
-        st.altair_chart((chart_agg + rule90_agg), use_container_width=True)
-        st.caption("Línea roja: **90% del score acumulado** (en escala de score).")
+    st.caption(
+        f"Objetivo: **{TARGET_COL}** · Clases: "
+        f"{dict(pd.Series(y_raw).value_counts().sort_index())}. "
+        f"Las tablas incluyen **%** y **% acumulado** sobre el total del score."
+    )
 
-    # — 7) Pie de sección
-    dist = dict(pd.Series(y_raw).value_counts().sort_index())
-    st.caption(f"Objetivo: **{TARGET_COL}** · Clases: {dist}")
+# Llamada protegida (si usas tu envoltorio, mantenlo; si no, llama directo)
+# safe_run("2.1 Selección categóricas", sec_21_cat_selection)
+sec_21_cat_selection()
 
-# Ejecutar sección de forma segura
-safe_run("2.1 Selección categóricas", sec_21_cat_selection)
 
 
 # =========================
