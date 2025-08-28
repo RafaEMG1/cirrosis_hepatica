@@ -438,26 +438,42 @@ with g2:
     )
     st.altair_chart(hist_chart, use_container_width=True)
 
-# =========================
-# Matriz de Correlación (figura y texto reducidos)
-# =========================
 st.markdown("### Matriz de Correlación")
 correlacion = df.corr(numeric_only=True)
 
-fig, ax = plt.subplots(figsize=(3, 2))  # tamaño del gráfico más pequeño
-sns.heatmap(
-    correlacion,
-    annot=True,
-    cmap='coolwarm',
-    fmt=".2f",
-    ax=ax,
-    annot_kws={"size": 4},   # texto dentro de las celdas
-    cbar_kws={"shrink": 0.5} # barra de color más pequeña
-)
-ax.set_title("Matriz de Correlación", fontsize=7)   # título más pequeño
-ax.tick_params(axis='x', labelsize=4)                # etiquetas X más pequeñas
-ax.tick_params(axis='y', labelsize=4)                # etiquetas Y más pequeñas
-st.pyplot(fig)
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Escalas (x0.5 aprox)
+scale = 0.5
+fig_w, fig_h = 10*scale, 8*scale  # antes (10, 8)
+
+with sns.plotting_context("notebook", font_scale=0.5):  # reduce todas las fuentes de seaborn
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+
+    hm = sns.heatmap(
+        correlacion,
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        ax=ax,
+        annot_kws={"size": 6},     # números dentro de celdas
+        cbar_kws={"shrink": 0.6},  # barra de color más pequeña
+        linewidths=0.3,            # líneas finas para que no se “pegue” visualmente
+        linecolor="white"
+    )
+
+    # Título y ticks más pequeños aún
+    ax.set_title("Matriz de Correlación", fontsize=9, pad=6)
+    ax.tick_params(axis="x", labelsize=6, rotation=45)
+    ax.tick_params(axis="y", labelsize=6)
+
+    # Ajustar tamaño de la barra de color y sus etiquetas
+    cbar = hm.collections[0].colorbar
+    cbar.ax.tick_params(labelsize=6)
+
+    fig.tight_layout(pad=0.8)
+    st.pyplot(fig)
 
 #________________________________________________________________________________________________________________________________________________________________
 
