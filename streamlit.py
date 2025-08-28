@@ -49,6 +49,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from sklearn.model_selection import cross_val_score
+import streamlit as st
+from graphviz import Digraph
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -56,6 +58,72 @@ warnings.filterwarnings("ignore")
 
 st.set_page_config(page_title="Cirrosis Hepatica Streamlit App", layout="wide")
 st.title("Clasificación de los estadios de la cirrosis hepática con métodos de Machine Learning")
+
+# ----------------------------
+# Sección de Metodología
+# ----------------------------
+st.title("🧪 Metodología del Proyecto")
+
+st.markdown("""
+Este proyecto sigue una **metodología de Machine Learning** para la clasificación de la cirrosis hepática.  
+A continuación, se presentan los pasos de manera interactiva:
+""")
+
+# Paso 1
+with st.expander("📌 Paso 1: Carga y Análisis Exploratorio de Datos"):
+    st.write("""
+    - Se utilizó un dataset con información clínica de pacientes.  
+    - El archivo fue almacenado en GitHub y cargado en streamlit.  
+    - Se revisó la calidad de los datos para identificar valores nulos
+    - Se crean dos secciones con filtros para revisar las variables categóricas y numéricas.
+    """)
+
+# Paso 2
+with st.expander("📌 Paso 2: Preprocesamiento"):
+    st.write("""
+    - Limpieza de datos: imputación de valores faltantes.  
+    - Codificación de variables categóricas (One-Hot Encoding).  
+    - Estandarización de las variables numéricas.  
+    """)
+
+# Paso 3
+with st.expander("📌 Paso 3: Selección de características"):
+    st.write("""
+    - Se utilizaron técnicas de filtrado de variables como: 
+        - Variables categóricas: $\chi^2$ e información mutua
+        - Variables numéricas: ANOVA e información mutua
+    - MCA y PCA
+    - RFE (Recursive Feature Elimination) con validación cruzada (selección por envoltura)
+    - Esto permite quedarnos solo con las variables más relevantes para el modelo.  
+    """)
+
+# Paso 4
+with st.expander("📌 Paso 4: Entrenamiento del modelo"):
+    st.write("""
+    - Se probaron algoritmos como **Decission tree**, **Regresión Logística**, **Random forest**, **KNN (K-Nearest Neighbors)** y **SVM (Support Vector Machine)**.  
+    -   
+    """)
+
+# Paso 5
+with st.expander("📌 Paso 5: Evaluación"):
+    st.write("""
+    - Se calcularon métricas como **Accuracy, Precision, Recall y F1-Score**.  
+    - También se aplicó validación cruzada para obtener una estimación más robusta.  
+    """)
+
+st.subheader("🔎 Flujo Metodológico")
+
+dot = Digraph()
+
+dot.node("A", "Carga de Datos", shape="box")
+dot.node("B", "Preprocesamiento", shape="box")
+dot.node("C", "Selección de características", shape="box")
+dot.node("D", "Entrenamiento del modelo\n(Logistic Regression, SVM)", shape="box")
+dot.node("E", "Evaluación del modelo\n(Accuracy, Recall, F1-Score)", shape="box")
+
+dot.edges(["AB", "BC", "CD", "DE"])
+
+st.graphviz_chart(dot)
 
 st.caption("Estudio clínico de cirrosis hepática — ficha de variables")
 
@@ -100,8 +168,9 @@ url = "https://raw.githubusercontent.com/DiegoNaranjo84/cirrosis_hepatica/main/l
 # Cargar el dataset
 df = pd.read_csv(url)
 
-
 # Filtrar solo columnas categóricas (tipo "object" o "category")
+df['Stage'] = pd.to_numeric(df['Stage'], errors='coerce')
+df['Stage'] = pd.Categorical(df['Stage'], ordered=True)
 cat_cols = df.select_dtypes(include=['object', 'category'])
 
 st.subheader("Primeras 10 filas del dataset")
@@ -152,8 +221,6 @@ with col2:
     st.subheader("Resumen variables numéricas")
     st.dataframe(num_summary, use_container_width=True)
 
-
-
 #####--------------------------------------------------------------------------------------#########
 
 st.markdown("""### Análisis de variables categóricas""")
@@ -162,13 +229,13 @@ st.caption("Selecciona una variable para ver su distribución en tabla y gráfic
 variables_categoricas = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
 
 if not variables_categoricas:
-    st.warning("No se detectaron variables categóricas (object/category/bool) en `df`.")
+    st.warning("No se detectaron variables categóricas (object/category/bool) en df.")
     st.stop()
 
 # =========================
 # Controles (En la sección)
 # =========================
-st.markdown("**Controles**")
+st.markdown("*Controles*")
 with st.container():
     c1, c2 = st.columns([1.6, 1.1])
     with c1:
@@ -229,7 +296,7 @@ if orden_alfabetico:
 tcol, gcol = st.columns([1.1, 1.3], gap="large")
 
 with tcol:
-    st.subheader(f"Distribución de `{var}`")
+    st.subheader(f"Distribución de {var}")
     st.dataframe(
         data_table.assign(Porcentaje=data_table["Porcentaje"].round(2)),
         use_container_width=True
@@ -263,10 +330,7 @@ with c1:
 with c2:
     st.metric("Total registros (variable seleccionada)", f"{int(serie.shape[0]):,}".replace(",", "."))
 
-st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
-
-
-
+st.caption("Consejo: usa *Top N* para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
 
 #####--------------------------------------------------------------------------------------#########
 
@@ -280,13 +344,13 @@ st.caption("Selecciona una variable para ver su distribución en tabla, boxplot 
 variables_numericas = df.select_dtypes(include=["number"]).columns.tolist()
 
 if not variables_numericas:
-    st.warning("No se detectaron variables numéricas en `df`.")
+    st.warning("No se detectaron variables numéricas en df.")
     st.stop()
 
 # =========================
 # Controles dentro de la sección
 # =========================
-st.markdown("**Controles**")
+st.markdown("*Controles*")
 with st.container():
     c1, c2 = st.columns([1.6, 1.4])
     with c1:
@@ -330,15 +394,15 @@ g1, g2 = st.columns(2, gap="large")
 
 # --- Boxplot vertical y ancho ---
 with g1:
-    st.subheader(f"Boxplot de `{var_num}` (vertical)")
+    st.subheader(f"Boxplot de {var_num} ")
     box_data = pd.DataFrame({var_num: serie_num})
-    box_data["__grupo__"] = "Distribución"  # ancla un grupo único en X
+    box_data["_grupo_"] = "Distribución"  # ancla un grupo único en X
 
     box_chart = (
         alt.Chart(box_data)
         .mark_boxplot(size=140, extent=1.5)  # size = ancho de la caja; extent=1.5 => whiskers tipo Tukey
         .encode(
-            x=alt.X("__grupo__:N", axis=None, title=""),
+            x=alt.X("_grupo_:N", axis=None, title=""),
             y=alt.Y(f"{var_num}:Q", title=var_num)
         )
         .properties(height=350)
@@ -347,7 +411,7 @@ with g1:
 
 # --- Histograma ---
 with g2:
-    st.subheader(f"Histograma de `{var_num}`")
+    st.subheader(f"Histograma de {var_num}")
     hist_data = pd.DataFrame({var_num: serie_num})
     hist_chart = (
         alt.Chart(hist_data)
@@ -373,16 +437,13 @@ fig, ax = plt.subplots(figsize=(10, 8))
 sns.heatmap(correlacion, annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
 ax.set_title("Matriz de Correlación")
 st.pyplot(fig)
+#________________________________________________________________________________________________________________________________________________________________
+
 
 
 
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 1. Selección de carácteristicas""")
-
-st.markdown("""# 1. Ensayo 2""")
-
-st.markdown("""# 1. Ensayo""")
-
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 1.1. Selección de carácteristicas categóricas""")
 # ________________________________________________________________________________________________________________________________________________________________
@@ -399,6 +460,9 @@ st.markdown("""## 2.1. MCA""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 2.2. PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
+st.markdown("""# 3. RFE""")
+
+# ______________________________________________________
 
 st.markdown("""# 3. RFE""")
 
@@ -475,30 +539,16 @@ feature_names = pipeline.named_steps["preprocessor"].get_feature_names_out()
 selected_names = feature_names[mask]
 
 # Mostrar en la app
-st.write(f"**Accuracy en test set:** {accuracy_test:.3f}")
-st.write(f"**Variables seleccionadas:** {len(selected_names)}")
-st.write(f"**Nombres:** {list(selected_names)}")
+st.write(f"*Accuracy en test set:* {accuracy_test:.3f}")
+st.write(f"*Variables seleccionadas:* {len(selected_names)}")
+st.write(f"*Nombres:* {list(selected_names)}")
 
 # Resumen final (solo el modelo elegido)
 st.header("Resumen Final")
 st.markdown(f"""
-**Modelo:** {modelo_elegido}  
+*Modelo:* {modelo_elegido}  
 - Accuracy: {accuracy_test:.3f}  
 - Variables seleccionadas: {len(selected_names)}  
 - Nombres: {list(selected_names)}  
 """)
-
-
-
-
-
-
-
-
-# ________________________________________________________________________________________________________________________________________________________________
-
-
-
-
-# ________________________________________________________________________________________________________________________________________________________________
 
