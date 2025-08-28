@@ -48,6 +48,7 @@ from sklearn.decomposition import PCA
 from scipy.stats import uniform
 from scipy.stats import randint
 
+from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
