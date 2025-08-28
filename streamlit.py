@@ -68,6 +68,13 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    balanced_accuracy_score,
+    classification_report,
+    confusion_matrix,
+)
 
 import warnings
 warnings.filterwarnings("ignore")
