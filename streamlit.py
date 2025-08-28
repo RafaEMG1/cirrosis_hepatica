@@ -456,9 +456,186 @@ st.markdown("""## 1.3. Unión de variables categóricas y númericas""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 2. MCA Y PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
+# ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 2.1. MCA""")
+
+# split into train and test sets
+df_cat = df.select_dtypes(include=['object', 'category'])
+df_cat.info()
+
+X = df_cat
+y = df['Stage']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, stratify=y, test_size=0.33, random_state=1
+)
+
+# Codificación del conjunto de entrenamiento
+X_train_encoded = pd.get_dummies(X_train)
+
+# Codificación del conjunto de prueba
+X_test_encoded = pd.get_dummies(X_test)
+
+# Aplicar MCA
+mca_cirrosis = mca.MCA(X_train_encoded, benzecri=True)
+
+# Valores singulares y autovalores
+sv = mca_cirrosis.s
+eigvals = sv ** 2
+explained_var = eigvals / eigvals.sum()
+cum_explained_var = np.cumsum(explained_var)
+
+# Graficar varianza acumulada
+fig1, ax1 = plt.subplots(figsize=(8,5))
+ax1.plot(range(1, len(cum_explained_var)+1), cum_explained_var, marker='o', linestyle='--')
+ax1.axhline(y=0.8, color='r', linestyle='-')
+ax1.set_xlabel('Dimensiones MCA')
+ax1.set_ylabel('Varianza acumulada explicada')
+ax1.set_title('Varianza acumulada explicada por MCA')
+ax1.grid(True)
+st.pyplot(fig1)
+
+n_dims_90 = np.argmax(cum_explained_var >= 0.8) + 1  # +1 porque los índices empiezan en 0
+st.write(f'Se necesitan {n_dims_90} dimensiones para explicar al menos el 80% de la varianza.')
+
+# Coordenadas individuos (2 primeras dimensiones)
+coords = mca_cirrosis.fs_r(N=3)
+
+fig2, ax2 = plt.subplots(figsize=(8,6))
+sns.scatterplot(x=coords[:,0], y=coords[:,1], hue=y_train, palette='Set1', alpha=0.7, ax=ax2)
+ax2.set_xlabel('Dimensión 1')
+ax2.set_ylabel('Dimensión 2')
+ax2.set_title('Scatterplot MCA Dim 1 vs Dim 2')
+ax2.legend(title='Clase', labels=['Estadio 1', 'Estadio 2','Estadio 3'])
+st.pyplot(fig2)
+
+# Cargas variables categóricas (loadings) primeras 2 dimensiones
+loadings_cat = pd.DataFrame(mca_cirrosis.fs_c()[:, :2], index=X_train_encoded.columns)
+
+# Calcular contribución de cada variable (cuadrado / suma por dimensión)
+loadings_sq = loadings_cat ** 2
+contrib_cat = loadings_sq.div(loadings_sq.sum(axis=0), axis=1)
+
+# Sumar contribuciones por variable
+contrib_var = contrib_cat.sum(axis=1).sort_values(ascending=False)
+
+fig3, ax3 = plt.subplots(figsize=(12,6))
+contrib_var.plot(kind='bar', color='teal', ax=ax3)
+ax3.set_ylabel('Contribución total a Dim 1 y 2')
+ax3.set_title('Contribución de variables a las primeras 2 dimensiones MCA')
+ax3.set_xticklabels(ax3.get_xticklabels(), rotation=45, ha='right')
+fig3.tight_layout()
+st.pyplot(fig3)
+
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 2.2. PCA""")
+
+df_num = df.select_dtypes(include=['int64', 'float64'])
+df_num.info()
+
+X = df_num
+y = df['Stage']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, stratify=y, test_size=0.33, random_state=1
+)
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X_train)
+
+# PCA con todos los componentes
+pca = PCA()
+X_pca = pca.fit_transform(X_scaled)
+
+# Varianza acumulada
+explained_var = np.cumsum(pca.explained_variance_ratio_)
+
+fig, ax = plt.subplots(figsize=(8,5))
+ax.plot(range(1, len(explained_var) + 1), explained_var, marker='o', linestyle='--')
+ax.axhline(y=0.8, color='r', linestyle='-')
+ax.set_xlabel('Número de componentes principales')
+ax.set_ylabel('Varianza acumulada explicada')
+ax.set_title('Varianza acumulada explicada por PCA')
+ax.grid(True)
+st.pyplot(fig)
+
+n_dims_90 = np.argmax(explained_var >= 0.8) + 1
+st.write(f'Se necesitan {n_dims_90} dimensiones para explicar al menos el 80% de la varianza.')
+
+# Scatterplot PC1 vs PC2
+fig2, ax2 = plt.subplots(figsize=(8,6))
+sns.scatterplot(x=X_pca[:,0], y=X_pca[:,1], hue=y_train, palette='Set1', alpha=0.7, ax=ax2)
+ax2.set_xlabel('PC1')
+ax2.set_ylabel('PC2')
+ax2.set_title('Scatterplot PC1 vs PC2')
+ax2.legend(title='Clase', labels=['Estadio 1', 'Estadio 2', 'Estadio 3'])
+st.pyplot(fig2)
+
+loadings = pd.DataFrame(
+    pca.components_.T,
+    columns=[f'PC{i+1}' for i in range(pca.n_components_)],
+    index=X_train.columns
+)
+
+#ráfico en 3D PCA
+
+# Escalar los datos
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X_train)
+
+# PCA con 3 componentes
+pca = PCA(n_components=3)
+X_pca = pca.fit_transform(X_scaled)
+
+# Crear DataFrame PCA
+df_pca = pd.DataFrame(X_pca, columns=['PC1', 'PC2', 'PC3'])
+
+# Asegurar que y_train está alineado y convertir a DataFrame
+df_pca['Clase'] = y_train.values
+
+# Mapeo correcto de clases 1, 2, 3
+df_pca['Clase'] = df_pca['Clase'].astype(int).map({
+    1: 'Estadio 1',
+    2: 'Estadio 2',
+    3: 'Estadio 3'
+})
+
+# Agrega hover con el índice si no tienes otra variable informativa
+df_pca['ID'] = df_pca.index.astype(str)
+
+# Mostrar el DataFrame por si acaso
+# st.write(df_pca.head())
+
+# Crear gráfico interactivo
+fig = px.scatter_3d(
+    df_pca,
+    x='PC1',
+    y='PC2',
+    z='PC3',
+    color='Clase',
+    hover_name='ID',
+    color_discrete_sequence=px.colors.qualitative.Set1,
+    title='PCA 3D - Componentes Principales',
+    labels={'Clase': 'Estadio'},
+    opacity=0.7
+)
+
+st.plotly_chart(fig)
+
+fig3, ax3 = plt.subplots(figsize=(12,8))
+sns.heatmap(loadings.iloc[:, :9], annot=True, cmap='coolwarm', center=0, ax=ax3)
+ax3.set_title('Heatmap de loadings (primeras 9 PCs)')
+st.pyplot(fig3)
+
+# PCA con componentes que explican al menos 80% varianza
+pca_80 = PCA(n_components=0.80)
+X_pca_80 = pca_80.fit_transform(X_scaled)
+
+st.write(f"Número de componentes principales para explicar 80% varianza: {pca_80.n_components_}")
+st.write(f"Varianza explicada acumulada por estas componentes: {sum(pca_80.explained_variance_ratio_)*100:.4f}%")
+
+
+
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 3. RFE""")
 
