@@ -7,6 +7,7 @@ import streamlit as st
 import kagglehub
 import os
 import altair as alt
+import plotly.express as px
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
