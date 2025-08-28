@@ -43,6 +43,7 @@ from sklearn.feature_selection import RFECV
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 import mca
+from sklearn.model_selection import StratifiedKFold, cross_validate
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from scipy.stats import uniform
