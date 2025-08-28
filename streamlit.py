@@ -645,6 +645,79 @@ else:
             f"- Varianza acumulada lograda: **{pca_target.explained_variance_ratio_.sum()*100:.2f}%**"
         )
 
+# ______________________________________________________________________________________________________
+st.markdown("## 2.3. Concatenar las dos matrices")
+
+# === Controles interactivos para PCA y MCA ===
+c31, c32 = st.columns(2)
+n_pca = c31.slider("N° Componentes PCA", 2, min(X_train.shape[1], 15), 8, 1, key="concat_pca")
+n_mca = c32.slider("N° Componentes MCA", 2, min(X_train_encoded.shape[1], 15), 6, 1, key="concat_mca")
+
+# ------------------------
+# 1) PCA sobre numéricas
+# ------------------------
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+pca = PCA(n_components=n_pca)
+X_train_pca = pca.fit_transform(X_train_scaled)
+X_test_pca = pca.transform(X_test_scaled)
+
+# Varianza explicada PCA
+var_pca = pca.explained_variance_ratio_.cumsum()
+
+# ------------------------
+# 2) MCA sobre categóricas
+# ------------------------
+mca_model = prince.MCA(n_components=n_mca, random_state=42)
+mca_model = mca_model.fit(X_train_encoded)
+
+X_train_mca = mca_model.transform(X_train_encoded)
+X_test_mca = mca_model.transform(X_test_encoded)
+
+# ------------------------
+# 3) DataFrames finales
+# ------------------------
+X_train_pca_df = pd.DataFrame(X_train_pca, columns=[f"PCA_{i+1}" for i in range(X_train_pca.shape[1])])
+X_test_pca_df = pd.DataFrame(X_test_pca, columns=[f"PCA_{i+1}" for i in range(X_test_pca.shape[1])])
+
+X_train_mca_df = pd.DataFrame(X_train_mca.values, columns=[f"MCA_{i+1}" for i in range(X_train_mca.shape[1])])
+X_test_mca_df = pd.DataFrame(X_test_mca.values, columns=[f"MCA_{i+1}" for i in range(X_test_mca.shape[1])])
+
+# Concatenación final
+X_train_final = pd.concat([X_train_pca_df, X_train_mca_df], axis=1)
+X_test_final = pd.concat([X_test_pca_df, X_test_mca_df], axis=1)
+
+# ------------------------
+# 4) Visualizaciones
+# ------------------------
+c33, c34 = st.columns(2)
+with c33:
+    fig_pca_var, ax = plt.subplots(figsize=(5,3))
+    ax.plot(range(1, len(var_pca)+1), var_pca, marker="o")
+    ax.set_title("PCA - Varianza acumulada")
+    ax.set_xlabel("Componentes PCA")
+    ax.set_ylabel("Varianza explicada")
+    st.pyplot(fig_pca_var)
+
+with c34:
+    st.markdown("**Dataset Final (Test Set)**")
+    st.dataframe(X_test_final.head(10))
+
+# ------------------------
+# 5) Descarga opcional
+# ------------------------
+csv_final = pd.concat([X_train_final, X_test_final]).to_csv(index=False).encode("utf-8")
+st.download_button(
+    label="Descargar Dataset PCA+MCA (CSV)",
+    data=csv_final,
+    file_name="dataset_pca_mca.csv",
+    mime="text/csv"
+)
+# ______________________________________________________________________________________________________
+
+
 # === FIN SECCIÓN 2 ===
 
 
