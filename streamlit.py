@@ -160,7 +160,6 @@ with col2:
 
 
 
-
 #####--------------------------------------------------------------------------------------#########
 
 st.markdown("""### Análisis de variables categóricas""")
@@ -172,22 +171,40 @@ if not variables_categoricas:
     st.warning("No se detectaron variables categóricas (object/category/bool) en `df`.")
     st.stop()
 
-
 # =========================
-# Controles (Sidebar)
+# Controles (En la sección)
 # =========================
-st.sidebar.header("Controles")
-var = st.sidebar.selectbox("Variable categórica", options=variables_categoricas, index=0)
-incluir_na = st.sidebar.checkbox("Incluir NaN", value=True)
-metric_opt = st.sidebar.radio("Métrica", options=["Porcentaje", "Conteo"], index=0)
-top_n = st.sidebar.slider("Top N", min_value=3, max_value=30, value=10, step=1, help="Agrupa las categorías menos frecuentes en 'Otros'")
-orden_alfabetico = st.sidebar.checkbox("Ordenar categorías alfabéticamente (en la tabla)", value=False)
+st.markdown("**Controles**")
+with st.container():
+    c1, c2, c3 = st.columns([1.6, 1.1, 1.3])
+    with c1:
+        var = st.selectbox(
+            "Variable categórica",
+            options=variables_categoricas,
+            index=0,
+            key="cat_var_local"
+        )
+        top_n = st.slider(
+            "Top N (agrupa el resto en 'Otros')",
+            min_value=3, max_value=30, value=10, step=1,
+            help="Agrupa las categorías menos frecuentes en 'Otros'",
+            key="cat_topn_local"
+        )
+    with c2:
+        incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na_local")
+        orden_alfabetico = st.checkbox("Ordenar alfabéticamente (solo tabla)", value=False, key="cat_orden_local")
+    with c3:
+        metric_opt = st.radio(
+            "Métrica del gráfico",
+            options=["Porcentaje", "Conteo"],
+            index=0,
+            key="cat_metric_local"
+        )
 
 # =========================
 # Preparar datos
 # =========================
 serie = df[var].copy()
-
 if not incluir_na:
     serie = serie.dropna()
 
@@ -249,7 +266,7 @@ with gcol:
                 alt.Tooltip("Porcentaje:Q", format=".2f")
             ],
         )
-        .properties(width="container", height=380)
+        .properties(height=380)
     )
     st.altair_chart(chart, use_container_width=True)
 
@@ -266,6 +283,7 @@ with c3:
     st.metric("Incluye NaN", "Sí" if incluir_na else "No")
 
 st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
+
 
 
 
