@@ -734,12 +734,6 @@ with cB:
 # __________________________________________________________________________________________________
 st.markdown("""## 2.4. Modelado""")
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score, StratifiedKFold
 
 # --- Filtro único de la subsección (por defecto: Logistic Regression)
 model_name_24 = st.selectbox(
@@ -815,9 +809,9 @@ def get_model_and_searchspace(name: str):
     if name == "Decision Tree":
         model = DecisionTreeClassifier(random_state=42)
         param_dist = {
-            "max_depth": randint(2, 40),
-            "min_samples_split": randint(2, 20),
-            "min_samples_leaf": randint(1, 20),
+            "max_depth": randint(3, 20),
+            "min_samples_split": randint(2, 10),
+            #"min_samples_leaf": randint(1, 20),
             "criterion": ["gini", "entropy", "log_loss"],
         }
         return model, param_dist, "accuracy"
