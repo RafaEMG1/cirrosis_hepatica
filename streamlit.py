@@ -435,8 +435,8 @@ preprocessor = ColumnTransformer(
 
 # Modelos disponibles
 models = {
-    "Random Forest": RandomForestClassifier(random_state=42),
     "Decision Tree": DecisionTreeClassifier(random_state=42),
+    "Random Forest": RandomForestClassifier(random_state=42),
     "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
 }
 
