@@ -1084,27 +1084,14 @@ else:
         st.write(f"Componentes para ≥ {var_target_pca*100:.0f}%: **{n_pc_target}**")
 
     with c6:
-    # Asegurar un DataFrame con índice alineado a X_train
-    X_pca_df = (pd.DataFrame(
-        np.asarray(X_pca_full),  # por si llegara como DataFrame, lo forzamos a array
-        index=X_train.index,
-        columns=[f"PC{i+1}" for i in range(X_pca_full.shape[1])]
-    ))
-    y_plot = pd.Series(y_train).reindex(X_pca_df.index)
-
-    fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
-    sns.scatterplot(
-        x=X_pca_df.iloc[:, 0],
-        y=X_pca_df.iloc[:, 1],
-        hue=y_plot,
-        alpha=0.7,
-        ax=ax2
-    )
-    ax2.set_xlabel("PC1")
-    ax2.set_ylabel("PC2")
-    ax2.set_title("PCA: PC1 vs PC2")
-    ax2.legend(title="Clase")
-    st.pyplot(fig_pca_sc)
+        fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
+        y_train_align = y_train.iloc[:X_pca_full.shape[0]]
+        sns.scatterplot(x=X_pca_full[:, 0], y=X_pca_full[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
+        ax2.set_xlabel("PC1")
+        ax2.set_ylabel("PC2")
+        ax2.set_title("PCA: PC1 vs PC2")
+        ax2.legend(title="Clase")
+        st.pyplot(fig_pca_sc)
 
     # Loadings y Top-K por PCs seleccionadas
     loadings = pd.DataFrame(
