@@ -731,164 +731,175 @@ with cB:
     st.dataframe(X_test_final.head(10))
 # ______________________________________________________________________________________________________
 
-# ______________________________________________________________________________________________________
-
-
-# ________________________________________________________________________________________________________________________________________________________________
+# __________________________________________________________________________________________________
 st.markdown("""## 2.4. Modelado""")
 
-models = {
-    'Logistic Regression': LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000),
-    'KNN': KNeighborsClassifier(),
-    'SVC': SVC(),
-    'Decision Tree': DecisionTreeClassifier(),
-    'Random Forest': RandomForestClassifier(),
-}
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 
-resultados = []
+# --- Filtro único de la subsección (por defecto: Logistic Regression)
+model_name_24 = st.selectbox(
+    "Elige el modelo a evaluar (CV 5-fold)",
+    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
+    index=0,  # Logistic Regression por defecto
+    key="model_sel_24"
+)
 
-for name, model in models.items():
-    scores = cross_val_score(model, X_train_final, y_train, cv=5, scoring='accuracy')
-    resultados.append({'Modelo': name, 'Accuracy promedio': scores.mean()})
+# --- Construcción del modelo según selección
+def build_model(name: str):
+    if name == "Logistic Regression":
+        return LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=2000, class_weight="balanced", random_state=42)
+    if name == "KNN":
+        return KNeighborsClassifier()
+    if name == "SVC":
+        return SVC()  # por defecto rbf; podrías envolver en Pipeline con StandardScaler si lo deseas
+    if name == "Decision Tree":
+        return DecisionTreeClassifier(random_state=42)
+    if name == "Random Forest":
+        return RandomForestClassifier(random_state=42)
+    raise ValueError("Modelo no soportado")
 
-df_resultados = pd.DataFrame(resultados)
+modelo_24 = build_model(model_name_24)
 
-st.subheader("Resultados de validación cruzada (accuracy promedio)")
-st.table(df_resultados)
-    
-# ________________________________________________________________________________________________________________________________________________________________
+# --- CV estratificado para mayor estabilidad
+cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scores = cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
+
+st.subheader("Resultados de validación cruzada")
+st.write(f"**Modelo:** {model_name_24}")
+st.write(f"**Accuracy (media CV):** {scores.mean():.4f}  |  **Std:** {scores.std():.4f}")
+
+# __________________________________________________________________________________________________
 st.markdown("""## 2.5. Ajuste de hiperparámetros""")
 
-from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import RandomizedSearchCV
+from scipy.stats import randint, uniform, loguniform
 
-param_dist = {
-    'C': uniform(0.01, 10),
-    'solver': ['lbfgs', 'saga'],
-    'multi_class': ['multinomial']
-}
+# --- Filtro único de la subsección (por defecto: Logistic Regression)
+model_name_25 = st.selectbox(
+    "Elige el modelo a ajustar (RandomizedSearchCV)",
+    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
+    index=0,
+    key="model_sel_25"
+)
 
-log_reg = LogisticRegression(max_iter=1000)
-random_log = RandomizedSearchCV(log_reg, param_distributions=param_dist, n_iter=20,
-                                cv=5, scoring='accuracy', n_jobs=-1, verbose=1, random_state=42)
-random_log.fit(X_train_final, y_train)
-print("Logistic Regression - Best Params:", random_log.best_params_)
+# --- Espacios de búsqueda por modelo (evitando combinaciones inválidas)
+def get_model_and_searchspace(name: str):
+    if name == "Logistic Regression":
+        model = LogisticRegression(multi_class="multinomial", solver="lbfgs", penalty="l2", max_iter=5000, class_weight="balanced", random_state=42)
+        # solo C para evitar incompatibilidades
+        param_dist = {"C": loguniform(1e-3, 1e2)}
+        return model, param_dist, "accuracy"
+    if name == "KNN":
+        model = KNeighborsClassifier()
+        param_dist = {
+            "n_neighbors": randint(3, 30),
+            "weights": ["uniform", "distance"],
+            "metric": ["euclidean", "manhattan", "minkowski"],
+        }
+        return model, param_dist, "accuracy"
+    if name == "SVC":
+        model = SVC(probability=False, random_state=42)
+        # espacio mixto simple; si kernel='linear', gamma se ignora; no pasa nada en SVC
+        param_dist = {
+            "C": loguniform(1e-2, 1e2),
+            "kernel": ["linear", "rbf", "poly"],
+            "gamma": ["scale", "auto"],
+            "degree": randint(2, 5),  # aplica si poly
+        }
+        return model, param_dist, "accuracy"
+    if name == "Decision Tree":
+        model = DecisionTreeClassifier(random_state=42)
+        param_dist = {
+            "max_depth": randint(2, 40),
+            "min_samples_split": randint(2, 20),
+            "min_samples_leaf": randint(1, 20),
+            "criterion": ["gini", "entropy", "log_loss"],
+        }
+        return model, param_dist, "accuracy"
+    if name == "Random Forest":
+        model = RandomForestClassifier(random_state=42, n_jobs=-1)
+        param_dist = {
+            "n_estimators": randint(100, 600),
+            "max_depth": randint(3, 40),
+            "min_samples_split": randint(2, 20),
+            "min_samples_leaf": randint(1, 20),
+            "max_features": ["sqrt", "log2", None],
+        }
+        return model, param_dist, "accuracy"
+    raise ValueError("Modelo no soportado")
 
-from sklearn.neighbors import KNeighborsClassifier
+estimator_25, searchspace_25, metric_25 = get_model_and_searchspace(model_name_25)
 
-param_dist = {
-    'n_neighbors': randint(3, 20),
-    'weights': ['uniform', 'distance'],
-    'metric': ['euclidean', 'manhattan']
-}
+cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+random_search = RandomizedSearchCV(
+    estimator=estimator_25,
+    param_distributions=searchspace_25,
+    n_iter=25,
+    cv=cv5,
+    scoring=metric_25,
+    n_jobs=-1,
+    verbose=1,
+    random_state=42
+)
+random_search.fit(X_train_final, y_train)
 
-knn = KNeighborsClassifier()
-random_knn = RandomizedSearchCV(knn, param_distributions=param_dist, n_iter=20,
-                                cv=5, scoring='accuracy', n_jobs=-1, verbose=1, random_state=42)
-random_knn.fit(X_train_final, y_train)
-print("KNN - Best Params:", random_knn.best_params_)
+st.subheader("Mejores hiperparámetros")
+st.write(f"**Modelo:** {model_name_25}")
+st.write("**Best params:**", random_search.best_params_)
+st.write(f"**Mejor {metric_25} (CV):** {random_search.best_score_:.4f}")
 
-from sklearn.tree import DecisionTreeClassifier
+# Guardar el mejor estimador en session_state para reusarlo en 2.6
+if "best_estimators" not in st.session_state:
+    st.session_state.best_estimators = {}
+st.session_state.best_estimators[model_name_25] = random_search.best_estimator_
 
-param_dist = {
-    'max_depth': randint(3, 20),
-    'min_samples_split': randint(2, 10),
-    'criterion': ['gini', 'entropy']
-}
-
-tree = DecisionTreeClassifier()
-random_tree = RandomizedSearchCV(tree, param_distributions=param_dist, n_iter=20,
-                                 cv=5, scoring='accuracy', n_jobs=-1, verbose=1, random_state=42)
-random_tree.fit(X_train_final, y_train)
-print("Decision Tree - Best Params:", random_tree.best_params_)
-
-from sklearn.ensemble import RandomForestClassifier
-
-param_dist = {
-    'n_estimators': randint(100, 300),
-    'max_depth': randint(5, 30),
-    'min_samples_split': randint(2, 10),
-    'max_features': ['sqrt', 'log2']
-}
-
-rf = RandomForestClassifier()
-random_rf = RandomizedSearchCV(rf, param_distributions=param_dist, n_iter=20,
-                               cv=5, scoring='accuracy', n_jobs=-1, verbose=1, random_state=42)
-random_rf.fit(X_train_final, y_train)
-print("Random Forest - Best Params:", random_rf.best_params_)
-
-from sklearn.svm import SVC
-
-param_dist = {
-    'C': uniform(0.1, 10),
-    'kernel': ['linear', 'rbf', 'poly'],
-    'gamma': ['scale', 'auto']
-}
-
-svm = SVC()
-random_svm = RandomizedSearchCV(svm, param_distributions=param_dist, n_iter=20,
-                                cv=5, scoring='accuracy', n_jobs=-1, verbose=1, random_state=42)
-random_svm.fit(X_train_final, y_train)
-print("SVM - Best Params:", random_svm.best_params_)
-
-st.subheader("Mejores hiperparámetros por modelo")
-
-st.write("**Logistic Regression**")
-st.write(random_log.best_params_)
-st.write(f"Mejor accuracy (CV): {random_log.best_score_:.4f}")
-
-st.write("**KNN**")
-st.write(random_knn.best_params_)
-st.write(f"Mejor accuracy (CV): {random_knn.best_score_:.4f}")
-
-st.write("**Decision Tree**")
-st.write(random_tree.best_params_)
-st.write(f"Mejor accuracy (CV): {random_tree.best_score_:.4f}")
-
-st.write("**Random Forest**")
-st.write(random_rf.best_params_)
-st.write(f"Mejor accuracy (CV): {random_rf.best_score_:.4f}")
-
-# ________________________________________________________________________________________________________________________________________________________________
+# __________________________________________________________________________________________________
 st.markdown("""## 2.6. Comparación de modelos optimizados""")
 
-modelos_optimizados = {
-    "Logistic Regression": random_log.best_estimator_,
-    "KNN": random_knn.best_estimator_,
-    "Decision Tree": random_tree.best_estimator_,
-    "Random Forest": random_rf.best_estimator_,
-    "SVM": random_svm.best_estimator_
-}
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-resultados = []
+# --- Filtro único de la subsección (por defecto: Logistic Regression)
+model_name_26 = st.selectbox(
+    "Elige el modelo a evaluar en Test",
+    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
+    index=0,
+    key="model_sel_26"
+)
 
-for nombre, modelo in modelos_optimizados.items():
-    scores_cv = cross_val_score(modelo, X_train_final, y_train, cv=5, scoring='accuracy')
-    mean_cv = scores_cv.mean()
-    std_cv = scores_cv.std()
+# Recuperar el mejor estimador si ya fue ajustado en 2.5; si no, construir y entrenar rápido
+if "best_estimators" in st.session_state and model_name_26 in st.session_state.best_estimators:
+    modelo_26 = st.session_state.best_estimators[model_name_26]
+else:
+    # fallback: usa el modelo por defecto sin tuning
+    modelo_26 = build_model(model_name_26)
+    # (opcional) podrías entrenar sobre todo el train antes de evaluar
+    # pero la comparación se verá mejor si haces CV o tuning. Aquí entrenamos simple:
+    modelo_26.fit(X_train_final, y_train)
 
-    modelo.fit(X_train_final, y_train)
-    y_pred = modelo.predict(X_test_final)
-    acc_test = accuracy_score(y_test, y_pred)
+# CV del modelo final (opcional para mostrar referencia)
+scores_cv = cross_val_score(modelo_26, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
+mean_cv = scores_cv.mean()
+std_cv = scores_cv.std()
 
-    resultados.append({
-        'Modelo': nombre,
-        'Accuracy CV (media)': round(mean_cv, 4),
-        'Accuracy CV (std)': round(std_cv, 4),
-        'Accuracy Test': round(acc_test, 4)
-    })
+# Entrenamiento en train y evaluación en test
+modelo_26.fit(X_train_final, y_train)
+y_pred = modelo_26.predict(X_test_final)
+acc_test = accuracy_score(y_test, y_pred)
 
-    st.markdown(f"### 📌 Modelo: {nombre}")
-    st.markdown(f"**Accuracy CV:** {mean_cv:.4f} ± {std_cv:.4f}")
-    st.markdown(f"**Accuracy Test:** {acc_test:.4f}")
-    st.text("📋 Classification Report:")
-    st.text(classification_report(y_test, y_pred))
-    st.text("🧩 Matriz de Confusión:")
-    st.text(confusion_matrix(y_test, y_pred))
+st.markdown(f"### 📌 Modelo: {model_name_26}")
+st.markdown(f"**Accuracy CV (media ± std):** {mean_cv:.4f} ± {std_cv:.4f}")
+st.markdown(f"**Accuracy Test:** {acc_test:.4f}")
+st.text("📋 Classification Report (Test):")
+st.text(classification_report(y_test, y_pred))
+st.text("🧩 Matriz de Confusión (Test):")
+st.write(pd.DataFrame(confusion_matrix(y_test, y_pred), index=sorted(y_test.unique()), columns=sorted(y_test.unique())))
 
-df_resultados = pd.DataFrame(resultados).sort_values(by='Accuracy Test', ascending=False)
 
-st.markdown("## ✅ Resumen Comparativo de Modelos")
-st.dataframe(df_resultados)
 
 # === FIN SECCIÓN 2 ===
 
