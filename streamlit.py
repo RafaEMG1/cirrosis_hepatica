@@ -455,187 +455,228 @@ st.markdown("""## 1.2. Selección de carácteristicas numéricas""")
 st.markdown("""## 1.3. Unión de variables categóricas y númericas""")
 
 
+# === INICIO SECCIÓN 2 ===
+# __________________________________________________________________________________________________
+st.markdown("# 2. MCA Y PCA")
 
-# ________________________________________________________________________________________________________________________________________________________________
-st.markdown("""# 2. MCA Y PCA""")
-# ________________________________________________________________________________________________________________________________________________________________
-# ________________________________________________________________________________________________________________________________________________________________
-st.markdown("""## 2.1. MCA""")
+# =========================
+# Controles (Sidebar)
+# =========================
+st.sidebar.header("Controles de Dimensionalidad")
 
-# split into train and test sets
-df_cat = df.select_dtypes(include=['object', 'category'])
-df_cat.info()
+# % varianza objetivo (compartido para MCA y PCA)
+var_target = st.sidebar.slider(
+    "Porcentaje de varianza a explicar (80–99%)",
+    min_value=80, max_value=99, value=80, step=1, key="dim_var_target"
+) / 100.0
 
-X = df_cat
-y = df['Stage']
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, stratify=y, test_size=0.33, random_state=1
+# Top-K variables que más aportan a las dimensiones/PCs seleccionadas
+top_k_vars = st.sidebar.slider(
+    "Top-K variables con mayor aporte",
+    min_value=5, max_value=50, value=15, step=1, key="dim_topk"
 )
 
-# Codificación del conjunto de entrenamiento
-X_train_encoded = pd.get_dummies(X_train)
+# __________________________________________________________________________________________________
+st.markdown("## 2.1. MCA")
 
-# Codificación del conjunto de prueba
-X_test_encoded = pd.get_dummies(X_test)
+# Selección de categóricas y codificación
+df_cat_all = df.select_dtypes(include=["object", "category", "bool"]).copy()
+cat_cols_all = [c for c in df_cat_all.columns if c != "Stage"]
+if not cat_cols_all:
+    st.warning("No hay variables categóricas distintas de 'Stage' para MCA.")
+else:
+    # Filtro de variables categóricas a incluir
+    cat_sel = st.multiselect(
+        "Variables categóricas para MCA",
+        options=cat_cols_all,
+        default=cat_cols_all,
+        key="mca_cat_sel"
+    )
+    df_cat = df_cat_all[cat_sel] if cat_sel else df_cat_all.iloc[:, :0]  # vacío si nada seleccionado
 
-# Aplicar MCA
-mca_cirrosis = mca.MCA(X_train_encoded, benzecri=True)
+    # Split
+    y = df["Stage"]
+    X_train, X_test, y_train, y_test = train_test_split(
+        df_cat, y, stratify=y, test_size=0.33, random_state=1
+    )
 
-# Valores singulares y autovalores
-sv = mca_cirrosis.s
-eigvals = sv ** 2
-explained_var = eigvals / eigvals.sum()
-cum_explained_var = np.cumsum(explained_var)
+    # get_dummies solo sobre train (MCA usa variables categóricas dummificadas)
+    X_train_encoded = pd.get_dummies(X_train, drop_first=False)
 
-# Graficar varianza acumulada
-fig1, ax1 = plt.subplots(figsize=(8,5))
-ax1.plot(range(1, len(cum_explained_var)+1), cum_explained_var, marker='o', linestyle='--')
-ax1.axhline(y=0.8, color='r', linestyle='-')
-ax1.set_xlabel('Dimensiones MCA')
-ax1.set_ylabel('Varianza acumulada explicada')
-ax1.set_title('Varianza acumulada explicada por MCA')
-ax1.grid(True)
-st.pyplot(fig1)
+    if X_train_encoded.shape[1] == 0:
+        st.info("Selecciona al menos una variable categórica para ejecutar MCA.")
+    else:
+        # Ajuste MCA
+        mca_cirrosis = mca.MCA(X_train_encoded, benzecri=True)
 
-n_dims_90 = np.argmax(cum_explained_var >= 0.8) + 1  # +1 porque los índices empiezan en 0
-st.write(f'Se necesitan {n_dims_90} dimensiones para explicar al menos el 80% de la varianza.')
+        # Varianza explicada acumulada
+        sv = mca_cirrosis.s
+        eigvals = sv ** 2
+        explained_var = eigvals / eigvals.sum()
+        cum_explained_var = np.cumsum(explained_var)
 
-# Coordenadas individuos (2 primeras dimensiones)
-coords = mca_cirrosis.fs_r(N=3)
+        # Número de dimensiones según var_target
+        n_dims_target = int(np.argmax(cum_explained_var >= var_target) + 1)
 
-fig2, ax2 = plt.subplots(figsize=(8,6))
-sns.scatterplot(x=coords[:,0], y=coords[:,1], hue=y_train, palette='Set1', alpha=0.7, ax=ax2)
-ax2.set_xlabel('Dimensión 1')
-ax2.set_ylabel('Dimensión 2')
-ax2.set_title('Scatterplot MCA Dim 1 vs Dim 2')
-ax2.legend(title='Clase', labels=['Estadio 1', 'Estadio 2','Estadio 3'])
-st.pyplot(fig2)
+        c1, c2 = st.columns(2)
 
-# Cargas variables categóricas (loadings) primeras 2 dimensiones
-loadings_cat = pd.DataFrame(mca_cirrosis.fs_c()[:, :2], index=X_train_encoded.columns)
+        with c1:
+            fig_mca_var, ax = plt.subplots(figsize=(8, 5))
+            ax.plot(range(1, len(cum_explained_var) + 1), cum_explained_var, marker="o", linestyle="--")
+            ax.axhline(y=var_target, linestyle="-")
+            ax.set_xlabel("Dimensiones MCA")
+            ax.set_ylabel("Varianza acumulada explicada")
+            ax.set_title("MCA - Varianza acumulada")
+            ax.grid(True)
+            st.pyplot(fig_mca_var)
+            st.write(f"Dimensiones necesarias para ≥ {var_target*100:.0f}%: **{n_dims_target}**")
 
-# Calcular contribución de cada variable (cuadrado / suma por dimensión)
-loadings_sq = loadings_cat ** 2
-contrib_cat = loadings_sq.div(loadings_sq.sum(axis=0), axis=1)
+        with c2:
+            # Coordenadas de individuos (primeras 2 dims para visual)
+            coords = mca_cirrosis.fs_r(N=3)
+            fig_mca_sc, ax2 = plt.subplots(figsize=(8, 6))
+            # Alinear y_train con coords
+            y_train_align = y_train.iloc[:coords.shape[0]]
+            sns.scatterplot(x=coords[:, 0], y=coords[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
+            ax2.set_xlabel("Dimensión 1")
+            ax2.set_ylabel("Dimensión 2")
+            ax2.set_title("MCA: Dim 1 vs Dim 2")
+            ax2.legend(title="Clase")
+            st.pyplot(fig_mca_sc)
 
-# Sumar contribuciones por variable
-contrib_var = contrib_cat.sum(axis=1).sort_values(ascending=False)
+        # Contribución de variables a las primeras n_dims_target dimensiones
+        loadings_cat = pd.DataFrame(mca_cirrosis.fs_c()[:, :n_dims_target],
+                                    index=X_train_encoded.columns)
+        contrib = (loadings_cat ** 2).div((loadings_cat ** 2).sum(axis=0), axis=1)
+        # Aporte total (suma en dims seleccionadas)
+        contrib_total = contrib.sum(axis=1).sort_values(ascending=False)
 
-fig3, ax3 = plt.subplots(figsize=(12,6))
-contrib_var.plot(kind='bar', color='teal', ax=ax3)
-ax3.set_ylabel('Contribución total a Dim 1 y 2')
-ax3.set_title('Contribución de variables a las primeras 2 dimensiones MCA')
-ax3.set_xticklabels(ax3.get_xticklabels(), rotation=45, ha='right')
-fig3.tight_layout()
-st.pyplot(fig3)
+        # Mostrar Top-K
+        top_contrib = contrib_total.head(top_k_vars)
 
-# ________________________________________________________________________________________________________________________________________________________________
-st.markdown("""## 2.2. PCA""")
+        c3, c4 = st.columns(2)
+        with c3:
+            st.markdown(f"**Top-{top_k_vars} aportes (MCA)** — sobre {n_dims_target} dim")
+            fig_mca_bar, ax3 = plt.subplots(figsize=(10, 6))
+            top_contrib.plot(kind="bar", ax=ax3)
+            ax3.set_ylabel("Contribución total (suma en dims seleccionadas)")
+            ax3.set_title("Aporte de variables/dummies (MCA)")
+            ax3.set_xticklabels(ax3.get_xticklabels(), rotation=45, ha="right")
+            fig_mca_bar.tight_layout()
+            st.pyplot(fig_mca_bar)
 
-df_num = df.select_dtypes(include=['int64', 'float64'])
-df_num.info()
+        with c4:
+            st.markdown("**Notas rápidas (MCA)**")
+            st.markdown(
+                f"- Varianza objetivo: **{var_target*100:.0f}%**  \n"
+                f"- Dimensiones usadas: **{n_dims_target}**  \n"
+                f"- Variables categóricas seleccionadas: **{len(cat_sel)}**"
+            )
 
-X = df_num
-y = df['Stage']
+# __________________________________________________________________________________________________
+st.markdown("## 2.2. PCA")
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, stratify=y, test_size=0.33, random_state=1
-)
+# Numéricas
+df_num = df.select_dtypes(include=["int64", "float64"]).copy()
+if df_num.empty:
+    st.warning("No hay variables numéricas para PCA.")
+else:
+    # Split
+    y = df["Stage"]
+    X_train, X_test, y_train, y_test = train_test_split(
+        df_num, y, stratify=y, test_size=0.33, random_state=1
+    )
 
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X_train)
+    # Escalado
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_train)
 
-# PCA con todos los componentes
-pca = PCA()
-X_pca = pca.fit_transform(X_scaled)
+    # PCA completo (para traza de varianza)
+    pca_full = PCA()
+    X_pca_full = pca_full.fit_transform(X_scaled)
+    explained_cum = np.cumsum(pca_full.explained_variance_ratio_)
 
-# Varianza acumulada
-explained_var = np.cumsum(pca.explained_variance_ratio_)
+    # n componentes para var_target
+    n_pc_target = int(np.argmax(explained_cum >= var_target) + 1)
 
-fig, ax = plt.subplots(figsize=(8,5))
-ax.plot(range(1, len(explained_var) + 1), explained_var, marker='o', linestyle='--')
-ax.axhline(y=0.8, color='r', linestyle='-')
-ax.set_xlabel('Número de componentes principales')
-ax.set_ylabel('Varianza acumulada explicada')
-ax.set_title('Varianza acumulada explicada por PCA')
-ax.grid(True)
-st.pyplot(fig)
+    c5, c6 = st.columns(2)
 
-n_dims_90 = np.argmax(explained_var >= 0.8) + 1
-st.write(f'Se necesitan {n_dims_90} dimensiones para explicar al menos el 80% de la varianza.')
+    with c5:
+        fig_pca_var, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(range(1, len(explained_cum) + 1), explained_cum, marker="o", linestyle="--")
+        ax.axhline(y=var_target, linestyle="-")
+        ax.set_xlabel("Número de componentes principales")
+        ax.set_ylabel("Varianza acumulada explicada")
+        ax.set_title("PCA - Varianza acumulada")
+        ax.grid(True)
+        st.pyplot(fig_pca_var)
+        st.write(f"Componentes necesarios para ≥ {var_target*100:.0f}%: **{n_pc_target}**")
 
-# Scatterplot PC1 vs PC2
-fig2, ax2 = plt.subplots(figsize=(8,6))
-sns.scatterplot(x=X_pca[:,0], y=X_pca[:,1], hue=y_train, palette='Set1', alpha=0.7, ax=ax2)
-ax2.set_xlabel('PC1')
-ax2.set_ylabel('PC2')
-ax2.set_title('Scatterplot PC1 vs PC2')
-ax2.legend(title='Clase', labels=['Estadio 1', 'Estadio 2', 'Estadio 3'])
-st.pyplot(fig2)
+    with c6:
+        # Scatter PC1 vs PC2 (del PCA full)
+        fig_pca_sc, ax2 = plt.subplots(figsize=(8, 6))
+        y_train_align = y_train.iloc[:X_pca_full.shape[0]]
+        sns.scatterplot(x=X_pca_full[:, 0], y=X_pca_full[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
+        ax2.set_xlabel("PC1")
+        ax2.set_ylabel("PC2")
+        ax2.set_title("PCA: PC1 vs PC2")
+        ax2.legend(title="Clase")
+        st.pyplot(fig_pca_sc)
 
-loadings = pd.DataFrame(
-    pca.components_.T,
-    columns=[f'PC{i+1}' for i in range(pca.n_components_)],
-    index=X_train.columns
-)
+    # Loadings (PCA full) y ranking de aporte por variable en PCs seleccionadas
+    loadings = pd.DataFrame(
+        pca_full.components_.T,
+        columns=[f"PC{i+1}" for i in range(pca_full.n_components_)],
+        index=X_train.columns
+    )
 
-#ráfico en 3D PCA
+    # Aporte acumulado por variable = suma de cuadrados de loadings en PCs 1..n_pc_target
+    load_sel = loadings.iloc[:, :n_pc_target]
+    var_importance = (load_sel ** 2).sum(axis=1).sort_values(ascending=False)
+    top_vars_pca = var_importance.head(top_k_vars)
 
-# Escalar los datos
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X_train)
+    # 3D interactivo limitado a 3 PCs (para inspección visual)
+    pca_3 = PCA(n_components=3)
+    X_pca3 = pca_3.fit_transform(X_scaled)
+    df_pca3 = pd.DataFrame(X_pca3, columns=["PC1", "PC2", "PC3"])
+    df_pca3["Clase"] = y_train.values
+    df_pca3["Clase"] = df_pca3["Clase"].astype(int).map({1: "Estadio 1", 2: "Estadio 2", 3: "Estadio 3"})
+    df_pca3["ID"] = df_pca3.index.astype(str)
 
-# PCA con 3 componentes
-pca = PCA(n_components=3)
-X_pca = pca.fit_transform(X_scaled)
+    c7, c8 = st.columns(2)
+    with c7:
+        # Heatmap de loadings sobre primeras min(9, n_pc_target) PCs y solo Top-K variables
+        num_pcs_heat = max(1, min(9, n_pc_target))
+        heat_vars = top_vars_pca.index
+        fig_pca_hm, ax3 = plt.subplots(figsize=(12, 8))
+        sns.heatmap(loadings.loc[heat_vars, :num_pcs_heat], annot=True, cmap="coolwarm", center=0, ax=ax3)
+        ax3.set_title(f"Loadings (Top-{top_k_vars} vars) en primeras {num_pcs_heat} PCs")
+        st.pyplot(fig_pca_hm)
 
-# Crear DataFrame PCA
-df_pca = pd.DataFrame(X_pca, columns=['PC1', 'PC2', 'PC3'])
+    with c8:
+        st.markdown("**PCA 3D (PC1–PC3)**")
+        fig3d = px.scatter_3d(
+            df_pca3,
+            x="PC1", y="PC2", z="PC3",
+            color="Clase",
+            hover_name="ID",
+            color_discrete_sequence=px.colors.qualitative.Set1,
+            title="PCA 3D - Componentes Principales",
+            opacity=0.7
+        )
+        st.plotly_chart(fig3d, use_container_width=True)
 
-# Asegurar que y_train está alineado y convertir a DataFrame
-df_pca['Clase'] = y_train.values
+    # Resumen PCA a var_target
+    pca_target = PCA(n_components=var_target)
+    X_pca_target = pca_target.fit_transform(X_scaled)
+    st.write(
+        f"Componentes para explicar ≥ {var_target*100:.0f}%: **{pca_target.n_components_}** — "
+        f"Varianza acumulada: **{pca_target.explained_variance_ratio_.sum()*100:.2f}%**"
+    )
 
-# Mapeo correcto de clases 1, 2, 3
-df_pca['Clase'] = df_pca['Clase'].astype(int).map({
-    1: 'Estadio 1',
-    2: 'Estadio 2',
-    3: 'Estadio 3'
-})
+# === FIN SECCIÓN 2 ===
 
-# Agrega hover con el índice si no tienes otra variable informativa
-df_pca['ID'] = df_pca.index.astype(str)
 
-# Mostrar el DataFrame por si acaso
-# st.write(df_pca.head())
-
-# Crear gráfico interactivo
-fig = px.scatter_3d(
-    df_pca,
-    x='PC1',
-    y='PC2',
-    z='PC3',
-    color='Clase',
-    hover_name='ID',
-    color_discrete_sequence=px.colors.qualitative.Set1,
-    title='PCA 3D - Componentes Principales',
-    labels={'Clase': 'Estadio'},
-    opacity=0.7
-)
-
-st.plotly_chart(fig)
-
-fig3, ax3 = plt.subplots(figsize=(12,8))
-sns.heatmap(loadings.iloc[:, :9], annot=True, cmap='coolwarm', center=0, ax=ax3)
-ax3.set_title('Heatmap de loadings (primeras 9 PCs)')
-st.pyplot(fig3)
-
-# PCA con componentes que explican al menos 80% varianza
-pca_80 = PCA(n_components=0.80)
-X_pca_80 = pca_80.fit_transform(X_scaled)
-
-st.write(f"Número de componentes principales para explicar 80% varianza: {pca_80.n_components_}")
-st.write(f"Varianza explicada acumulada por estas componentes: {sum(pca_80.explained_variance_ratio_)*100:.4f}%")
 
 
 
