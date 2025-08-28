@@ -339,20 +339,24 @@ with c5:
 # =========================
 g1, g2 = st.columns(2, gap="large")
 
+# --- Boxplot vertical y ancho ---
 with g1:
     st.subheader(f"Boxplot de `{var_num}` (vertical)")
     box_data = pd.DataFrame({var_num: serie_num})
+    box_data["__grupo__"] = "Distribución"  # ancla un grupo único en X
+
     box_chart = (
         alt.Chart(box_data)
-        .mark_boxplot(size=80)  # ancho de la caja más grande
+        .mark_boxplot(size=140, extent=1.5)  # size = ancho de la caja; extent=1.5 => whiskers tipo Tukey
         .encode(
-            y=alt.Y(var_num, type="quantitative", title=var_num),
-            x=alt.X("count()", title="")  # Para hacerlo vertical
+            x=alt.X("__grupo__:N", axis=None, title=""),
+            y=alt.Y(f"{var_num}:Q", title=var_num)
         )
         .properties(height=350)
     )
     st.altair_chart(box_chart, use_container_width=True)
 
+# --- Histograma ---
 with g2:
     st.subheader(f"Histograma de `{var_num}`")
     hist_data = pd.DataFrame({var_num: serie_num})
@@ -362,7 +366,10 @@ with g2:
         .encode(
             alt.X(var_num, bin=alt.Bin(maxbins=bins)),
             y='count()',
-            tooltip=[alt.Tooltip(var_num, bin=alt.Bin(maxbins=bins)), alt.Tooltip('count()', title="Frecuencia")]
+            tooltip=[
+                alt.Tooltip(var_num, bin=alt.Bin(maxbins=bins)),
+                alt.Tooltip('count()', title="Frecuencia")
+            ]
         )
         .properties(height=350)
     )
