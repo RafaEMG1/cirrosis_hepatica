@@ -713,16 +713,6 @@ else:
         with st.expander("📄 Variables seleccionadas (hasta el umbral)"):
             st.write(selected.tolist())
 
-        # Botón para descargar CSV
-        csv_sel = pd.DataFrame({"variable": selected})
-        st.download_button(
-            label="⬇️ Descargar seleccionadas (CSV)",
-            data=csv_sel.to_csv(index=False).encode("utf-8"),
-            file_name=f"num_features_{key_prefix}.csv",
-            mime="text/csv",
-            key=f"num12_dl_{key_prefix}"
-        )
-
     with tab_anova:
         st.markdown("**Método:** ANOVA (f_classif) — relación lineal con clases.")
         run_numeric_selector(f_classif, "SelectKBest ANOVA (f_classif)", "anova")
@@ -766,6 +756,14 @@ else:
 
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 1.3. Unión de variables categóricas y númericas""")
+
+
+
+
+
+
+
+
 
 
 # === INICIO SECCIÓN 2 (filtros en cada subsección) ===
