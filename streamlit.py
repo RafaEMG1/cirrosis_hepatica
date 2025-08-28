@@ -443,7 +443,7 @@ with g2:
 # =========================
 st.markdown("### Matriz de Correlación")
 correlacion = df.corr(numeric_only=True)
-fig, ax = plt.subplots(figsize=(10, 8))
+fig, ax = plt.subplots(figsize=(5, 4)) 
 sns.heatmap(correlacion, annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
 ax.set_title("Matriz de Correlación")
 st.pyplot(fig)
