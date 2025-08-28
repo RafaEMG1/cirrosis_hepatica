@@ -283,7 +283,7 @@ with st.container():
 # =========================
 serie = df[var].copy()
 
-vc = serie.value_counts(dropna=True)  # Se mantienen los NaN para contarlos
+vc = serie.value_counts(dropna=False)  # Se mantienen los NaN para contarlos
 
 # Etiqueta amigable para NaN
 labels = vc.index.to_list()
@@ -1084,10 +1084,8 @@ else:
         st.write(f"Componentes para ≥ {var_target_pca*100:.0f}%: **{n_pc_target}**")
 
     with c6:
-        fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
         y_train_align = y_train.iloc[:X_pca_full.shape[0]]
         #sns.scatterplot(x=X_pca_full[:, 0], y=X_pca_full[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
-        fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
 
         x0 = X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 0]
         x1 = X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 1]
