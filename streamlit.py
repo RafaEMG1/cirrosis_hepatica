@@ -190,17 +190,14 @@ with st.container():
             key="cat_topn_local"
         )
     with c2:
-        incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na_local")
         orden_alfabetico = st.checkbox("Ordenar alfabéticamente (solo tabla)", value=False, key="cat_orden_local")
 
 # =========================
-# Preparar datos
+# Preparar datos (siempre incluye NaN)
 # =========================
 serie = df[var].copy()
-if not incluir_na:
-    serie = serie.dropna()
 
-vc = serie.value_counts(dropna=incluir_na)
+vc = serie.value_counts(dropna=True)  # Se mantienen los NaN para contarlos
 
 # Etiqueta amigable para NaN
 labels = vc.index.to_list()
@@ -265,19 +262,16 @@ with gcol:
 # Extras informativos
 # =========================
 st.divider()
-c1, c2, c3 = st.columns(3)
+c1, c2 = st.columns(2)
 with c1:
     st.metric("Categorías mostradas", f"{len(data_plot)}")
 with c2:
     st.metric("Total registros (variable seleccionada)", f"{int(serie.shape[0]):,}".replace(",", "."))
-with c3:
-    st.metric("Incluye NaN", "Sí" if incluir_na else "No")
 
 st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
 
 
 
-#####--------------------------------------------------------------------------------------#########
 
 #####--------------------------------------------------------------------------------------#########
 
