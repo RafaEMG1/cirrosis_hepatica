@@ -4,6 +4,46 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
+
+# ================= SAFE CV HELPERS (auto-inserted) =================
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import StratifiedKFold, cross_val_score, cross_validate
+
+def make_safe_cv(y_like, max_splits=5, seed=42):
+    y_series = y_like
+    if isinstance(y_series, pd.DataFrame):
+        y_series = y_series.iloc[:, 0]
+    y_series = pd.Series(y_series).dropna()
+    min_class = y_series.value_counts().min() if not y_series.empty else 2
+    n_splits = max(2, min(max_splits, int(min_class)))
+    return StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+
+def _prepare_cv_xy(X, y):
+    # Align by index and drop NaN ONLY in y
+    _xy = pd.concat([X, y], axis=1)
+    y_name = y.name if hasattr(y, "name") and y.name is not None else "_y_"
+    _xy = _xy.dropna(subset=[y_name]) if y_name in _xy.columns else _xy.dropna()
+    X_cv = _xy[X.columns]
+    y_cv = _xy[y_name] if y_name in _xy.columns else _xy.iloc[:, -1]
+
+    if isinstance(y_cv, pd.DataFrame):
+        y_cv = y_cv.iloc[:, 0]
+    if str(y_cv.dtype) in ("category", "object"):
+        y_cv = y_cv.astype(str)
+    y_cv = np.asarray(y_cv).ravel()
+    return X_cv, y_cv
+
+def safe_safe_cross_val_score(estimator, X, y, scoring="accuracy", max_splits=5, n_jobs=-1):
+    X_cv, y_cv = _prepare_cv_xy(X, y)
+    cv = make_safe_cv(y_cv, max_splits=max_splits)
+    return safe_cross_val_score(estimator, X_cv, y_cv, cv=cv, scoring=scoring, n_jobs=n_jobs)
+
+def safe_safe_cross_validate(estimator, X, y, scoring="accuracy", max_splits=5, n_jobs=-1, **kwargs):
+    X_cv, y_cv = _prepare_cv_xy(X, y)
+    cv = make_safe_cv(y_cv, max_splits=max_splits)
+    return safe_cross_validate(estimator, X_cv, y_cv, cv=cv, scoring=scoring, n_jobs=n_jobs, **kwargs)
+# ====================================================================
 import kagglehub
 import os
 import altair as alt
@@ -801,6 +841,7 @@ def _endswith_any(colname: str, suffixes: list[str]) -> bool:
     return any(str(colname).endswith(suf) for suf in suffixes)
 
 def select_keep_cols(X_df: pd.DataFrame) -> pd.DataFrame:
+    X_df = X_df.copy()
     """
     Selecciona columnas OHE de interés tolerando prefijos como 'cat__' o 'ohe__'.
     Si falta alguna, la crea en 0 para no romper el flujo.
@@ -880,8 +921,8 @@ def eval_model(pipe, Xtr, ytr, Xte, yte):
 
 # === Definición de modelos ===
 models = {
-    "Softmax (LogReg)": LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=2000, n_jobs=None),
-    "SVC (RBF)":        SVC(kernel='rbf', C=1.0, gamma='scale', random_state=42),
+    "Softmax (LogReg)": LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=2000),
+    "SVC (RBF)":        SVC(kernel='rbf', C=1.0, gamma='scale'),
     "Decision Tree":    DecisionTreeClassifier(random_state=42),
     "Random Forest":    RandomForestClassifier(
         n_estimators=300, max_depth=None, min_samples_split=2, min_samples_leaf=1,
@@ -1001,6 +1042,7 @@ if cat_sel:
             coords = mca_cirrosis.fs_r(N=3)
             y_train_align = y_train.iloc[:coords.shape[0]]
             fig_mca_sc, ax2 = plt.subplots(figsize=(6, 4))
+fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
             sns.scatterplot(x=coords[:, 0], y=coords[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
             ax2.set_xlabel("Dimensión 1")
             ax2.set_ylabel("Dimensión 2")
@@ -1086,10 +1128,11 @@ else:
 
     with c6:
         y_train_align = y_train.iloc[:X_pca_full.shape[0]]
-        #sns.scatterplot(x=X_pca_full[:, 0], y=X_pca_full[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
+        #sns.scatterplot(x=(X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 0]), y=(X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 1]), hue=y_train_align, alpha=0.7, ax=ax2)
 
-        x0 = X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 0]
-        x1 = X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 1]
+        x0 = X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else (X_pca_full.iloc[:, 0] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 0])
+        x1 = X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else (X_pca_full.iloc[:, 1] if isinstance(X_pca_full, pd.DataFrame) else X_pca_full[:, 1])
+fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
         
         sns.scatterplot(x=x0, y=x1, hue=y_train_align, alpha=0.7, ax=ax2)
 
@@ -1161,7 +1204,7 @@ scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_num_train)  # fit solo con train
 X_test_scaled  = scaler.transform(X_num_test)       # transform en test
 
-pca = PCA(n_components=8)
+pca = PCA(n_components=min(8, X_num_train.shape[1]))
 X_train_pca = pca.fit_transform(X_train_scaled)
 X_test_pca  = pca.transform(X_test_scaled)
 
@@ -1174,7 +1217,7 @@ X_test_encoded  = pd.get_dummies(X_cat_test,  drop_first=False)
 X_test_encoded = X_test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
 
 # Modelo prince.MCA (evita sombrear el import `mca`)
-mca_pr = prince.MCA(n_components=6, random_state=42)
+mca_pr = prince.MCA(n_components=min(6, X_train_encoded.shape[1]), random_state=42)
 mca_pr = mca_pr.fit(X_train_encoded)
 
 X_train_mca = mca_pr.transform(X_train_encoded)
@@ -1242,7 +1285,7 @@ modelo_24 = build_model(model_name_24)
 
 # --- CV estratificado para mayor estabilidad
 cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-scores = cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
+scores = safe_cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
 
 st.subheader("Resultados de validación cruzada")
 st.write(f"**Modelo:** {model_name_24}")
@@ -1278,7 +1321,7 @@ def get_model_and_searchspace(name: str):
         }
         return model, param_dist, "accuracy"
     if name == "SVC":
-        model = SVC(probability=False, random_state=42)
+        model = SVC(probability=False)
         # espacio mixto simple; si kernel='linear', gamma se ignora; no pasa nada en SVC
         param_dist = {
             "C": loguniform(1e-2, 1e2),
@@ -1357,7 +1400,7 @@ else:
     modelo_26.fit(X_train_final, y_train)
 
 # CV del modelo final (opcional para mostrar referencia)
-scores_cv = cross_val_score(modelo_26, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
+scores_cv = safe_cross_val_score(modelo_26, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
 mean_cv = scores_cv.mean()
 std_cv = scores_cv.std()
 
@@ -1427,7 +1470,7 @@ models = {
 
 # ---- Control: seleccionar 1 modelo (por defecto Random Forest) ----
 model_names = list(models.keys())
-default_index = model_names.index("Decision Tree") if "Random Forest" in model_names else 0
+default_index = model_names.index("Random Forest") if "Random Forest" in model_names else 0
 modelo_elegido = st.selectbox("Modelo a ejecutar", options=model_names, index=default_index, key="rfe_modelo")
 model = models[modelo_elegido]
 
