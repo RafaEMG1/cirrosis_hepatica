@@ -961,7 +961,7 @@ except NameError:
 
 # ===== UI de selección de modelo =====
 model_name_14 = st.selectbox(
-    "Elige el modelo a evaluar (CV estratificado, aislado 1.4)",
+    "Elige el modelo a evaluar",
     options=[
         "Logistic Regression",
         "KNN",
