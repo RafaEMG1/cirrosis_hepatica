@@ -156,7 +156,7 @@ dot.node("B", "Preprocesamiento", shape="box")
 dot.node("C", "Selección de características", shape="box")
 dot.node("D", "Entrenamiento del modelo\n", shape="box")
 dot.node("E", "Búsqueda de mejores hiperparametros", shape="box")
-dot.node("F", "Evaluación del modelo\n(**Accuracy**)", shape="box")
+dot.node("F", "Evaluación del modelo\n **Accuracy**", shape="box")
 
 dot.edges(["AB", "BC", "CD", "DE","EF"])
 
