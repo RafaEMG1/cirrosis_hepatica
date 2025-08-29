@@ -124,11 +124,20 @@ with st.expander("📌 Paso 3: Selección de características"):
 # Paso 4
 with st.expander("📌 Paso 4: Entrenamiento del modelo"):
     st.write("""
-    - Se probaron algoritmos como **Decission tree**, **Regresión Logística**, **Random forest**, **KNN (K-Nearest Neighbors)** y **SVM (Support Vector Machine)**.  
-    -   
+    - Se probaron algoritmos como:
+        - **Decission tree**
+        - **Regresión Logística**
+        -**Random forest** 
+        -**KNN (K-Nearest Neighbors)** 
+        -**SVM (Support Vector Machine)** 
+        -**HistGradientBoosting**
+        -**ExtraTrees**
     """)
 
 # Paso 5
+with st.expander("📌 Paso 4: Búsqueda de mejores hiperparametros"):
+
+# Paso 6
 with st.expander("📌 Paso 5: Evaluación"):
     st.write("""
     - Se calcularon métricas como **Accuracy, Precision, Recall y F1-Score**.  
@@ -142,8 +151,9 @@ dot = Digraph()
 dot.node("A", "Carga de Datos", shape="box")
 dot.node("B", "Preprocesamiento", shape="box")
 dot.node("C", "Selección de características", shape="box")
-dot.node("D", "Entrenamiento del modelo\n(Logistic Regression, SVM)", shape="box")
-dot.node("E", "Evaluación del modelo\n(Accuracy, Recall, F1-Score)", shape="box")
+dot.node("D", "Entrenamiento del modelo\n", shape="box")
+dot.node("E", "Búsqueda de mejores hiperparametros", shape="box")
+dot.node("F", "Evaluación del modelo\n(Accuracy)", shape="box")
 
 dot.edges(["AB", "BC", "CD", "DE"])
 
