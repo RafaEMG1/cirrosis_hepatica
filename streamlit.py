@@ -1542,7 +1542,7 @@ st.header("Tabla Comparativa de Modelos")
 # Definir manualmente los resultados proporcionados
 resultados = {
     "Modelo": ["Decision Tree", "Random Forest", "Logistic Regression"],
-    "Accuracy": [0.922, 0.946, 0.580],
+    "Accuracy": [0.922, 0.946, 0.553],
     "N° de Variables": [3, 6, 25],
     "Variables Seleccionadas": [
         ["num__N_Days", "num__Albumin", "num__Prothrombin"],
