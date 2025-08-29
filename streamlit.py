@@ -85,47 +85,14 @@ warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Cirrosis Hepatica Streamlit App", layout="wide")
 st.title("Clasificación de los estadios de la cirrosis hepática con métodos de Machine Learning")
 
-st.markdown("## 👥 Equipo & 📊 Fuente de datos")
 
-    # ---- Equipo (tarjetas en columnas) ----
-cols = st.columns(3)
-    integrantes = [
-        ("Diego Fernando Naranjo Polanía", "dnaranjop@unbosque.edu.co"),
-        ("Johan Steven Mahecha Cobos", "jsmahecha@unbosque.edu.co"),
-        ("Rafael Eduardo Montenegro González", "rmontenegro@unbosque.edu.co"),
-    ]
+st.header("Equipo")
+st.write("[Diego Fernando Naranjo Polanía](mailto:dnaranjop@unbosque.edu.co)")
+st.write("[Johan Steven Mahecha Cobos](mailto:jsmahecha@unbosque.edu.co)")
+st.write("[Rafael Eduardo Montenegro González](mailto:rmontenegro@unbosque.edu.co)")
 
-    for col, (nombre, correo) in zip(cols, integrantes):
-        with col:
-            st.markdown(
-                f"""
-                <div style="border:1px solid #e6e6e6;border-radius:16px;padding:14px;">
-                  <div style="font-weight:600;margin-bottom:6px;">{nombre}</div>
-                  <a href="mailto:{correo}">{correo}</a>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-    # ---- Fuente de datos ----
-fuente_url = "https://www.kaggle.com/datasets/aadarshvelu/liver-cirrhosis-stage-classification"
-st.markdown(
-        f"""
-        ### 📦 Origen de la base de datos
-        Dataset: [Liver Cirrhosis Stage Classification]({fuente_url})
-        """
-    )
-
-    # ---- Sidebar (resumen) ----
-    with st.sidebar:
-        st.markdown("### ℹ️ Información")
-        st.markdown(
-            f"""
-            **Fuente de datos:**  
-            [Kaggle – Liver Cirrhosis Stage Classification]({fuente_url})
-            """
-        )
-
+st.subheader("Origen de la base de datos")
+st.write("[Kaggle – Liver Cirrhosis Stage Classification](https://www.kaggle.com/datasets/aadarshvelu/liver-cirrhosis-stage-classification)")
 
 
 # ----------------------------
