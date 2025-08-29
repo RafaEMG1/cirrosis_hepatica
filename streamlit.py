@@ -493,6 +493,302 @@ with sns.plotting_context("notebook", font_scale=0.6):
 #________________________________________________________________________________________________________________________________________________________________
 
 
+# ________________________________________________________________________________________________________________________________________________________________
+st.markdown("""# 1. Selección de carácteristicas""")
+# ________________________________________________________________________________________________________________________________________________________________
+st.markdown("""## 1.1. Selección de carácteristicas categóricas""")
+
+# =========================
+# Preparación de datos
+# =========================
+# Filtramos solo categóricas y dejamos Stage como y (objetivo)
+df_cat = df.select_dtypes(include=["object", "category", "bool"]).copy()
+if "Stage" not in df.columns:
+    st.error("❌ No se encontró la columna objetivo 'Stage'.")
+else:
+    # Asegurar que Stage esté como y y no en X
+    y_cat = df["Stage"]
+    X_cat = df_cat.drop(columns=[c for c in ["Stage"] if c in df_cat.columns], errors="ignore")
+
+    if X_cat.shape[1] == 0:
+        st.info("No hay variables categóricas (distintas a 'Stage') para evaluar.")
+    else:
+        # Split estratificado
+        X_train_c, X_test_c, y_train_c, y_test_c = train_test_split(
+            X_cat, y_cat, test_size=0.33, random_state=1, stratify=y_cat
+        )
+
+        # One-Hot Encoding (una sola vez y la reusamos)
+        ohe_11 = OneHotEncoder(handle_unknown="ignore", sparse=True)
+        X_train_ohe = ohe_11.fit_transform(X_train_c)
+        X_test_ohe  = ohe_11.transform(X_test_c)
+        feature_names_11 = ohe_11.get_feature_names_out(X_cat.columns)
+
+        # LabelEncoder para y
+        le_11 = LabelEncoder()
+        y_train_enc_11 = le_11.fit_transform(y_train_c)
+        y_test_enc_11  = le_11.transform(y_test_c)
+
+        # -------------------------
+        # Controles de la sección
+        # -------------------------
+        cA, cB, cC = st.columns([1.2, 1, 1])
+        thr_pct = cA.slider(
+            "Umbral de cobertura (porcentaje acumulado)",
+            min_value=50, max_value=99, value=90, step=1, key="cat11_thr"
+        )
+        top_n_plot = cB.slider(
+            "Top-N para el gráfico",
+            min_value=10, max_value=200, value=40, step=5, key="cat11_topn"
+        )
+        mostrar_tabla_completa = cC.checkbox(
+            "Mostrar tabla completa de dummies", value=False, key="cat11_tabla_full"
+        )
+
+        st.caption("Selecciona método de puntuación para ordenar dummies:")
+        tab_chi2, tab_mi = st.tabs(["χ² (Chi-cuadrado)", "Información Mutua"])
+
+        # =========================
+        # Helper para ejecutar y mostrar resultados
+        # =========================
+        def run_selector(score_func, titulo, key_prefix):
+            # SelectKBest con k='all' solo para obtener *todas* las puntuaciones
+            selector = SelectKBest(score_func=score_func, k="all")
+            selector.fit(X_train_ohe, y_train_enc_11)
+            scores = selector.scores_
+
+            # Proteger contra NaN o None
+            scores = np.nan_to_num(scores, nan=0.0)
+
+            # Orden descendente
+            idx = np.argsort(scores)[::-1]
+            sorted_scores = scores[idx]
+            sorted_feats  = feature_names_11[idx]
+
+            # Porcentaje acumulado
+            total = np.sum(sorted_scores) if np.sum(sorted_scores) > 0 else 1.0
+            cum = np.cumsum(sorted_scores) / total
+            cutoff_idx = int(np.searchsorted(cum, thr_pct / 100.0) + 1)
+            selected = sorted_feats[:cutoff_idx]
+
+            # Métricas
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Dummies totales", f"{len(feature_names_11)}")
+            c2.metric("Seleccionadas", f"{cutoff_idx}")
+            c3.metric("Umbral", f"{thr_pct}%")
+
+            # Tabla
+            df_scores = pd.DataFrame({
+                "Dummy (OHE)": sorted_feats,
+                "Score": np.round(sorted_scores, 6),
+                "Acumulado": np.round(cum, 4)
+            })
+            if not mostrar_tabla_completa:
+                st.dataframe(df_scores.head(top_n_plot), use_container_width=True)
+            else:
+                st.dataframe(df_scores, use_container_width=True)
+
+            # Gráfico barras Top-N
+            fig, ax = plt.subplots(figsize=(10, 4))
+            n_plot = min(top_n_plot, len(sorted_feats))
+            ax.bar(range(n_plot), sorted_scores[:n_plot])
+            ax.set_xticks(range(n_plot))
+            ax.set_xticklabels(sorted_feats[:n_plot], rotation=90)
+            ax.set_ylabel("Puntuación")
+            ax.set_title(f"{titulo} — Top-{n_plot}")
+            ax.axvline(cutoff_idx - 1, color="red", linestyle="--", label=f"Umbral {thr_pct}%")
+            ax.legend(loc="upper right")
+            fig.tight_layout()
+            st.pyplot(fig)
+
+            # Resumen y lista seleccionadas
+            with st.expander("📄 Variables seleccionadas (hasta el umbral)"):
+                st.write(selected.tolist())
+
+        # =========================
+        # Pestaña χ²
+        # =========================
+        with tab_chi2:
+            st.markdown("**Método:** χ² (para asociación categórica vs. clases del objetivo)")
+            run_selector(chi2, "SelectKBest χ²", "chi2_11")
+
+        # =========================
+        # Pestaña Información Mutua
+        # =========================
+        with tab_mi:
+            st.markdown("**Método:** Información Mutua (dependencia no lineal)")
+            run_selector(mutual_info_classif, "SelectKBest Información Mutua", "mi_11")
+
+
+# ________________________________________________________________________________________________________________________________________________________________
+st.markdown("""## 1.2. Selección de carácteristicas numéricas""")
+
+
+# =========================
+# 1.2. Selección de características numéricas
+# =========================
+st.markdown("## 1.2. Selección de características numéricas")
+
+# --- Detectar y preparar numéricas ---
+df_num_full = df.select_dtypes(include=["number"]).copy()
+
+# Asegura que Stage no esté en X
+num_cols_12 = [c for c in df_num_full.columns if c != "Stage"]
+
+if len(num_cols_12) == 0:
+    st.info("No hay variables numéricas (distintas a 'Stage') para evaluar.")
+else:
+    X_num = df[num_cols_12].copy()
+    y_num = df["Stage"].copy()
+
+    # Split estratificado
+    X_train_n, X_test_n, y_train_n, y_test_n = train_test_split(
+        X_num, y_num, test_size=0.33, random_state=1, stratify=y_num
+    )
+
+    # y codificada para los score_func
+    le_12 = LabelEncoder()
+    y_train_enc_12 = le_12.fit_transform(y_train_n)
+    y_test_enc_12  = le_12.transform(y_test_n)
+
+    # -------------------------
+    # Controles
+    # -------------------------
+    cA, cB, cC = st.columns([1.2, 1, 1])
+    thr_pct_n = cA.slider(
+        "Umbral de cobertura (porcentaje acumulado)",
+        min_value=50, max_value=99, value=90, step=1, key="num12_thr"
+    )
+    top_n_plot_n = cB.slider(
+        "Top-N para el gráfico",
+        min_value=5, max_value=50, value=20, step=1, key="num12_topn"
+    )
+    show_full_tbl_n = cC.checkbox(
+        "Mostrar tabla completa", value=False, key="num12_tbl_full"
+    )
+
+    tab_anova, tab_mi = st.tabs(["ANOVA (f_classif)", "Información Mutua"])
+
+    from sklearn.feature_selection import SelectKBest, f_classif, mutual_info_classif
+
+    def run_numeric_selector(score_func, titulo, key_prefix):
+        # k='all' para obtener todas las puntuaciones
+        selector = SelectKBest(score_func=score_func, k="all")
+        selector.fit(X_train_n, y_train_enc_12)
+
+        scores = selector.scores_
+        # Proteger NaN (puede pasar si una columna es constante)
+        scores = np.nan_to_num(scores, nan=0.0)
+
+        # Orden descendente
+        idx = np.argsort(scores)[::-1]
+        sorted_scores = scores[idx]
+        sorted_feats  = np.array(num_cols_12)[idx]
+
+        # Porcentaje acumulado
+        total = np.sum(sorted_scores) if np.sum(sorted_scores) > 0 else 1.0
+        cum = np.cumsum(sorted_scores) / total
+        cutoff_idx = int(np.searchsorted(cum, thr_pct_n / 100.0) + 1)
+        selected = sorted_feats[:cutoff_idx]
+
+        # Métricas rápidas
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Variables numéricas", f"{len(num_cols_12)}")
+        c2.metric("Seleccionadas", f"{cutoff_idx}")
+        c3.metric("Umbral", f"{thr_pct_n}%")
+
+        # Tabla
+        df_scores = pd.DataFrame({
+            "Variable": sorted_feats,
+            "Score": np.round(sorted_scores, 6),
+            "Acumulado": np.round(cum, 4)
+        })
+        if show_full_tbl_n:
+            st.dataframe(df_scores, use_container_width=True)
+        else:
+            st.dataframe(df_scores.head(top_n_plot_n), use_container_width=True)
+
+        # Gráfico Top-N
+        fig, ax = plt.subplots(figsize=(10, 4))
+        n_plot = min(top_n_plot_n, len(sorted_feats))
+        ax.bar(range(n_plot), sorted_scores[:n_plot])
+        ax.set_xticks(range(n_plot))
+        ax.set_xticklabels(sorted_feats[:n_plot], rotation=90)
+        ax.set_ylabel("Puntuación")
+        ax.set_title(f"{titulo} — Top-{n_plot}")
+        ax.axvline(cutoff_idx - 1, color="red", linestyle="--", label=f"Umbral {thr_pct_n}%")
+        ax.legend(loc="upper right")
+        fig.tight_layout()
+        st.pyplot(fig)
+
+        # Lista seleccionadas
+        with st.expander("📄 Variables seleccionadas (hasta el umbral)"):
+            st.write(selected.tolist())
+
+    with tab_anova:
+        st.markdown("**Método:** ANOVA (f_classif) — relación lineal con clases.")
+        run_numeric_selector(f_classif, "SelectKBest ANOVA (f_classif)", "anova")
+
+    with tab_mi:
+        st.markdown("**Método:** Información Mutua — dependencias no lineales.")
+        run_numeric_selector(mutual_info_classif, "SelectKBest Información Mutua", "mi")
+
+    # -----------------------------------------------------------------
+    # (Opcional) Buscar k óptimo con CV y Modelo (LogReg) — liviano
+    # -----------------------------------------------------------------
+    with st.expander("🔎 (Opcional) Buscar k óptimo con validación cruzada"):
+        st.caption("Se prueba k=1..N con Regresión Logística multinomial. Incluye StandardScaler.")
+        run_cv = st.checkbox("Ejecutar búsqueda de k", value=False, key="num12_cv_run")
+        metodo_cv = st.selectbox(
+            "Score function para SelectKBest",
+            options=["ANOVA (f_classif)", "Información Mutua"],
+            index=0, key="num12_cv_sf"
+        )
+        if run_cv:
+            score_func_cv = f_classif if metodo_cv == "ANOVA (f_classif)" else mutual_info_classif
+            from sklearn.model_selection import RepeatedStratifiedKFold, GridSearchCV
+            cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=42)
+            pipe = Pipeline(steps=[
+                ("scaler", StandardScaler()),
+                ("kbest", SelectKBest(score_func=score_func_cv)),
+                ("clf", LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=2000))
+            ])
+            param_grid = {"kbest__k": list(range(1, len(num_cols_12) + 1))}
+            search = GridSearchCV(pipe, param_grid, scoring="accuracy", n_jobs=-1, cv=cv)
+            search.fit(X_train_n, y_train_n)
+            st.write(f"**Mejor k:** {search.best_params_['kbest__k']}")
+            st.write(f"**Mejor Accuracy CV:** {search.best_score_:.4f}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
