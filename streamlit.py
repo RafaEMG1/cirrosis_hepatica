@@ -870,6 +870,106 @@ with c2:
         use_container_width=True
     )
 
+# __________________________________________________________________________________________________
+st.markdown("## 1.4. Modelado (basado en 1.3 y aislado)")
+
+# ===== Helpers locales (no globales) =====
+def s14_make_safe_cv(y_like, max_splits=5, seed=42):
+    ys = pd.Series(y_like).dropna()
+    min_class = ys.value_counts().min() if not ys.empty else 2
+    n_splits = max(2, min(max_splits, int(min_class)))
+    return StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+
+def s14_build_model(name: str):
+    if name == "Logistic Regression":
+        return LogisticRegression(multi_class="multinomial", solver="lbfgs",
+                                  max_iter=2000, class_weight="balanced", random_state=42)
+    if name == "KNN":
+        return KNeighborsClassifier()
+    if name == "SVC":
+        return SVC()  # ya venimos escalados desde 1.3 en numéricas
+    if name == "Decision Tree":
+        return DecisionTreeClassifier(random_state=42)
+    if name == "Random Forest":
+        return RandomForestClassifier(random_state=42)
+    raise ValueError("Modelo no soportado")
+
+# ===== Reutilizar transformaciones de 1.3 si existen; si no, fallback mínimo =====
+try:
+    X_train_14 = s13_X_train_t
+    X_test_14  = s13_X_test_t
+    y_train_14 = s13_y_train
+    y_test_14  = s13_y_test
+except NameError:
+    # Fallback: construir un preprocesado rápido similar a 1.3
+    st.warning("No se encontraron objetos de la Sección 1.3; usando preprocesado mínimo local para 1.4.")
+    # columnas
+    s14_num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    s14_cat_cols = df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
+    for _L in (s14_num_cols, s14_cat_cols):
+        if "Stage" in _L:
+            _L.remove("Stage")
+    s14_X = df[s14_num_cols + s14_cat_cols].copy()
+    s14_y = df["Stage"].copy()
+
+    # OHE compatible
+    try:
+        s14_OHE = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+    except TypeError:
+        s14_OHE = OneHotEncoder(handle_unknown="ignore", sparse=False)
+
+    # pipelines
+    s14_num_pipe = Pipeline([("imputer", SimpleImputer(strategy="median")),
+                             ("scaler", StandardScaler())])
+    s14_cat_pipe = Pipeline([("imputer", SimpleImputer(strategy="most_frequent")),
+                             ("ohe", s14_OHE)])
+    s14_pre = ColumnTransformer(
+        [("num", s14_num_pipe, s14_num_cols),
+         ("cat", s14_cat_pipe, s14_cat_cols)],
+        remainder="drop",
+        verbose_feature_names_out=False
+    )
+    try:
+        s14_pre.set_output(transform="pandas")
+    except Exception:
+        pass
+
+    X_train_raw, X_test_raw, y_train_14, y_test_14 = train_test_split(
+        s14_X, s14_y, test_size=0.33, random_state=42, stratify=s14_y
+    )
+    X_train_14 = s14_pre.fit_transform(X_train_raw)
+    X_test_14  = s14_pre.transform(X_test_raw)
+
+# ===== UI de selección de modelo =====
+model_name_14 = st.selectbox(
+    "Elige el modelo a evaluar (CV estratificado, aislado 1.4)",
+    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
+    index=0, key="s14_model_sel"
+)
+
+modelo_14 = s14_build_model(model_name_14)
+
+# ===== CV seguro y evaluación =====
+cv_14 = s14_make_safe_cv(y_train_14, max_splits=5)
+scores_14 = cross_val_score(modelo_14, X_train_14, y_train_14, cv=cv_14, scoring="accuracy", n_jobs=-1)
+
+st.subheader("Resultados de validación cruzada (1.4)")
+st.write(f"**Modelo:** {model_name_14}")
+st.write(f"**Accuracy (media CV):** {scores_14.mean():.4f}  |  **Std:** {scores_14.std():.4f}")
+
+# ===== Entrenamiento final y métricas en Test =====
+modelo_14.fit(X_train_14, y_train_14)
+y_pred_14 = modelo_14.predict(X_test_14)
+
+acc_test_14 = accuracy_score(y_test_14, y_pred_14)
+st.markdown(f"**Accuracy Test:** {acc_test_14:.4f}")
+st.text("📋 Classification Report (Test):")
+st.text(classification_report(y_test_14, y_pred_14))
+
+st.text("🧩 Matriz de Confusión (Test):")
+st.write(pd.DataFrame(confusion_matrix(y_test_14, y_pred_14),
+                      index=sorted(pd.unique(y_test_14)),
+                      columns=sorted(pd.unique(y_test_14))))
 
 
 
