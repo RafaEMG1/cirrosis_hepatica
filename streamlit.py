@@ -934,92 +934,150 @@ st.info(
 
 
 
-# === INICIO SECCIÓN 2 (filtros en cada subsección) ===
-st.markdown("# 2. MCA Y PCA")
 
-# -----------------------------------------------------
-# 2.1. MCA  (filtros dentro de la subsección)
-# -----------------------------------------------------
+# === INICIO SECCIÓN 2 (Self-contained: carga de datos desde cero) ===
+
+# ----------------------- Encabezado -----------------------
+st.markdown("# 2. MCA y PCA")
+
+# ----------------------------------------------------------------------------
+# 2.0. Cargar datos (desde URL fija, sin file_uploader)
+# ----------------------------------------------------------------------------
+st.markdown("## 2.0. Cargar datos")
+url = "https://raw.githubusercontent.com/DiegoNaranjo84/cirrosis_hepatica/main/liver_cirrhosis.csv"
+st.code(url, language="text")
+
+@st.cache_data(show_spinner=False)
+def s2_load_csv_from_url(url: str) -> pd.DataFrame:
+    df = pd.read_csv(
+        url, sep=",", encoding="utf-8", low_memory=False, on_bad_lines="skip"
+    )
+    df.columns = df.columns.str.strip()
+    # Normalizar nombre de la columna objetivo
+    if "Stage" not in df.columns:
+        candidates = [c for c in df.columns if c.strip().lower() == "stage"]
+        if candidates:
+            df = df.rename(columns={candidates[0]: "Stage"})
+    if "Stage" not in df.columns:
+        st.error("❌ El CSV debe incluir la columna objetivo 'Stage'.")
+        st.stop()
+
+    df = df.dropna(subset=["Stage"]).copy()
+    # Tipado 'Stage'
+    try:
+        if pd.api.types.is_numeric_dtype(df["Stage"]):
+            df["Stage"] = df["Stage"].astype(int).astype(str)
+        df["Stage"] = df["Stage"].astype("category")
+    except Exception:
+        df["Stage"] = df["Stage"].astype(str)
+
+    return df
+
+df_s2 = s2_load_csv_from_url(url)
+n_rows, n_cols = df_s2.shape
+st.caption(f"Datos cargados: **{n_rows:,} filas** × **{n_cols} columnas**.")
+
+# ----------------------------------------------------------------------------
+# Helpers locales
+# ----------------------------------------------------------------------------
+def s2_make_safe_cv(y_like, max_splits=5, seed=42):
+    """Devuelve un StratifiedKFold con n_splits seguro según la clase minoritaria."""
+    ys = pd.Series(y_like).dropna()
+    min_class = ys.value_counts().min() if not ys.empty else 2
+    n_splits = max(2, min(max_splits, int(min_class)))
+    return StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+
+def s2_scatter(ax, X2d, y, xlab="Dim 1", ylab="Dim 2", title="Scatter 2D"):
+    """Scatter robusto que acepta ndarray o DataFrame para X2d."""
+    x0 = X2d.iloc[:, 0] if isinstance(X2d, pd.DataFrame) else X2d[:, 0]
+    x1 = X2d.iloc[:, 1] if isinstance(X2d, pd.DataFrame) else X2d[:, 1]
+    sns.scatterplot(x=x0, y=x1, hue=y, alpha=0.7, ax=ax)
+    ax.set_xlabel(xlab); ax.set_ylabel(ylab); ax.set_title(title)
+    ax.legend(title="Clase")
+
+# ----------------------------------------------------------------------------
+# 2.1. MCA (prince), aislado
+# ----------------------------------------------------------------------------
 st.markdown("## 2.1. MCA")
 
-df_cat_all = df.select_dtypes(include=["object", "category", "bool"]).copy()
+try:
+    import prince
+except Exception:
+    st.error("❌ Falta la librería `prince`. Instálala con: `pip install prince`")
+    st.stop()
+
+df_cat_all = df_s2.select_dtypes(include=["object", "category", "bool"]).copy()
 cat_cols_all = [c for c in df_cat_all.columns if c != "Stage"]
 
-# Controles MCA (en línea, no sidebar)
 mca_ctrl = st.container()
 with mca_ctrl:
     c_m1, c_m2, c_m3 = st.columns([2, 1, 1])
-    cat_sel = c_m1.multiselect(
+    s2_cat_sel = c_m1.multiselect(
         "Variables categóricas para MCA",
         options=cat_cols_all,
         default=cat_cols_all,
-        key="mca_vars_sel_section"
+        key="s2_mca_vars_sel"
     )
-    var_target_mca = c_m2.slider(
-        "Varianza objetivo (%)",
-        min_value=80, max_value=99, value=80, step=1, key="mca_var_pct"
+    s2_var_target_mca = c_m2.slider(
+        "Varianza objetivo (%)", min_value=80, max_value=99, value=80, step=1, key="s2_mca_var_pct"
     ) / 100.0
-    top_k_mca = c_m3.slider(
-        "Top-K variables",
-        min_value=5, max_value=50, value=15, step=1, key="mca_topk"
+    s2_top_k_mca = c_m3.slider(
+        "Top-K variables", min_value=5, max_value=50, value=15, step=1, key="s2_mca_topk"
     )
 
-if cat_sel:
-    df_cat = df_cat_all[cat_sel]
-    y = df["Stage"]
-    X_train, X_test, y_train, y_test = train_test_split(
-        df_cat, y, stratify=y, test_size=0.33, random_state=1
-    )
+if s2_cat_sel:
+    df_cat = df_cat_all[s2_cat_sel]
+    y_mca = df_s2["Stage"].copy()
 
-    X_train_encoded = pd.get_dummies(X_train, drop_first=False)
-    if X_train_encoded.shape[1] == 0:
+    # Split por índices para aislar esta subsección
+    idx_train_mca, idx_test_mca = train_test_split(df_s2.index, stratify=y_mca, test_size=0.33, random_state=1)
+    X_train_cat = df_cat.loc[idx_train_mca]
+    y_train_mca = y_mca.loc[idx_train_mca]
+
+    # Dummies (one-hot)
+    X_train_cat_dum = pd.get_dummies(X_train_cat, drop_first=False)
+    if X_train_cat_dum.shape[1] == 0:
         st.info("Selecciona al menos una variable categórica para ejecutar MCA.")
     else:
-        mca_cirrosis = mca.MCA(X_train_encoded, benzecri=True)
+        # Fit y transform con prince.MCA
+        mca_pr = prince.MCA(
+            n_components=min(6, X_train_cat_dum.shape[1]),
+            benzecri=True, random_state=42
+        ).fit(X_train_cat_dum)
+        coords = mca_pr.transform(X_train_cat_dum)
 
-        # Varianza acumulada
-        sv = mca_cirrosis.s
-        eigvals = sv**2
-        explained_var = eigvals / eigvals.sum()
-        cum_explained_var = np.cumsum(explained_var)
-        n_dims_target = int(np.argmax(cum_explained_var >= var_target_mca) + 1)
+        # Varianza explicada acumulada
+        inertia = np.array(mca_pr.explained_inertia_)
+        cum_inertia = inertia.cumsum()
+        n_dims_target = int(np.argmax(cum_inertia >= s2_var_target_mca) + 1)
 
         c1, c2 = st.columns(2)
         with c1:
             fig_mca_var, ax = plt.subplots(figsize=(6, 4))
-            ax.plot(range(1, len(cum_explained_var) + 1), cum_explained_var, marker="o", linestyle="--")
-            ax.axhline(y=var_target_mca)
-            ax.set_xlabel("Dimensiones MCA")
-            ax.set_ylabel("Varianza acumulada explicada")
-            ax.set_title("MCA - Varianza acumulada")
-            ax.grid(True)
+            ax.plot(range(1, len(cum_inertia) + 1), cum_inertia, marker="o", linestyle="--")
+            ax.axhline(y=s2_var_target_mca)
+            ax.set_xlabel("Dimensiones MCA"); ax.set_ylabel("Varianza acumulada explicada")
+            ax.set_title("MCA - Varianza acumulada"); ax.grid(True)
             st.pyplot(fig_mca_var)
-            st.write(f"Dimensiones para ≥ {var_target_mca*100:.0f}%: **{n_dims_target}**")
+            st.write(f"Dimensiones para ≥ {s2_var_target_mca*100:.0f}%: **{n_dims_target}**")
 
         with c2:
-            coords = mca_cirrosis.fs_r(N=3)
-            y_train_align = y_train.iloc[:coords.shape[0]]
+            y_align = y_train_mca.iloc[:coords.shape[0]]
             fig_mca_sc, ax2 = plt.subplots(figsize=(6, 4))
-            sns.scatterplot(x=coords[:, 0], y=coords[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
-            ax2.set_xlabel("Dimensión 1")
-            ax2.set_ylabel("Dimensión 2")
-            ax2.set_title("MCA: Dim 1 vs Dim 2")
-            ax2.legend(title="Clase")
+            s2_scatter(ax2, coords, y_align, xlab="Dim 1", ylab="Dim 2", title="MCA: Dim 1 vs Dim 2")
             st.pyplot(fig_mca_sc)
 
-        # Contribución de variables (Top-K)
-        loadings_cat = pd.DataFrame(mca_cirrosis.fs_c()[:, :n_dims_target], index=X_train_encoded.columns)
-        contrib = (loadings_cat**2).div((loadings_cat**2).sum(axis=0), axis=1)
-        contrib_total = contrib.sum(axis=1).sort_values(ascending=False)
-        top_contrib = contrib_total.head(top_k_mca)
+        # Contribución de variables (aprox. con column_coordinates)
+        loadings_cat = pd.DataFrame(mca_pr.column_coordinates(X_train_cat_dum), index=X_train_cat_dum.columns)
+        contrib_approx = (loadings_cat.iloc[:, :max(1, n_dims_target)] ** 2).sum(axis=1).sort_values(ascending=False)
+        top_contrib = contrib_approx.head(s2_top_k_mca)
 
         c3, c4 = st.columns(2)
         with c3:
-            st.markdown(f"**Top-{top_k_mca} aportes (MCA)** — sobre {n_dims_target} dim")
+            st.markdown(f"**Top-{s2_top_k_mca} aportes (MCA)** — sobre {n_dims_target} dim")
             fig_mca_bar, ax3 = plt.subplots(figsize=(8, 4))
             top_contrib.plot(kind="bar", ax=ax3)
-            ax3.set_ylabel("Contribución total")
-            ax3.set_title("Aporte de variables/dummies (MCA)")
+            ax3.set_ylabel("Contribución aproximada"); ax3.set_title("Aporte de variables/dummies (MCA)")
             ax3.set_xticklabels(ax3.get_xticklabels(), rotation=45, ha="right")
             fig_mca_bar.tight_layout()
             st.pyplot(fig_mca_bar)
@@ -1027,84 +1085,69 @@ if cat_sel:
         with c4:
             st.markdown("**Resumen (MCA)**")
             st.markdown(
-                f"- Varianza objetivo: **{var_target_mca*100:.0f}%**  \n"
+                f"- Varianza objetivo: **{s2_var_target_mca*100:.0f}%**  \n"
                 f"- Dimensiones usadas: **{n_dims_target}**  \n"
-                f"- Variables categóricas seleccionadas: **{len(cat_sel)}**"
+                f"- Variables categóricas seleccionadas: **{len(s2_cat_sel)}**"
             )
 else:
     st.info("Selecciona variables categóricas para ejecutar MCA.")
 
-# -----------------------------------------------------
-# 2.2. PCA  (filtros dentro de la subsección)
-# -----------------------------------------------------
+# ----------------------------------------------------------------------------
+# 2.2. PCA (autosuficiente)
+# ----------------------------------------------------------------------------
 st.markdown("## 2.2. PCA")
 
-df_num = df.select_dtypes(include=["int64", "float64"]).copy()
-
-# Controles PCA (en línea, no sidebar)
-pca_ctrl = st.container()
-with pca_ctrl:
-    c_p1, c_p2 = st.columns([1, 1])
-    var_target_pca = c_p1.slider(
-        "Varianza objetivo (%)",
-        min_value=80, max_value=99, value=80, step=1, key="pca_var_pct"
-    ) / 100.0
-    top_k_pca = c_p2.slider(
-        "Top-K variables",
-        min_value=5, max_value=50, value=15, step=1, key="pca_topk"
-    )
-
-if df_num.empty:
+df_num_s2 = df_s2.select_dtypes(include=["number"]).copy()
+if df_num_s2.empty:
     st.warning("No hay variables numéricas para PCA.")
 else:
-    y = df["Stage"]
-    X_train, X_test, y_train, y_test = train_test_split(
-        df_num, y, stratify=y, test_size=0.33, random_state=1
-    )
+    y_pca = df_s2["Stage"].copy()
+    idx_train_pca, idx_test_pca = train_test_split(df_s2.index, stratify=y_pca, test_size=0.33, random_state=1)
+    X_train_num = df_num_s2.loc[idx_train_pca]; y_train_pca = y_pca.loc[idx_train_pca]
+
+    pca_ctrl = st.container()
+    with pca_ctrl:
+        c_p1, c_p2 = st.columns([1, 1])
+        s2_var_target_pca = c_p1.slider("Varianza objetivo (%)", min_value=80, max_value=99, value=80, step=1, key="s2_pca_var_pct") / 100.0
+        s2_top_k_pca = c_p2.slider("Top-K variables", min_value=5, max_value=50, value=15, step=1, key="s2_pca_topk")
 
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_train)
+    X_scaled = scaler.fit_transform(X_train_num)
 
-    # PCA completo (para varianza acumulada y PC1 vs PC2)
-    pca_full = PCA()
-    X_pca_full = pca_full.fit_transform(X_scaled)
+    pca_full = PCA().fit(X_scaled)
+    X_pca_full = pca_full.transform(X_scaled)
     explained_cum = np.cumsum(pca_full.explained_variance_ratio_)
-    n_pc_target = int(np.argmax(explained_cum >= var_target_pca) + 1)
+    n_pc_target = int(np.argmax(explained_cum >= s2_var_target_pca) + 1)
 
     c5, c6 = st.columns(2)
     with c5:
         fig_pca_var, ax = plt.subplots(figsize=(6, 4))
         ax.plot(range(1, len(explained_cum) + 1), explained_cum, marker="o", linestyle="--")
-        ax.axhline(y=var_target_pca)
+        ax.axhline(y=s2_var_target_pca)
         ax.set_xlabel("Número de componentes principales")
         ax.set_ylabel("Varianza acumulada explicada")
         ax.set_title("PCA - Varianza acumulada")
         ax.grid(True)
         st.pyplot(fig_pca_var)
-        st.write(f"Componentes para ≥ {var_target_pca*100:.0f}%: **{n_pc_target}**")
+        st.write(f"Componentes para ≥ {s2_var_target_pca*100:.0f}%: **{n_pc_target}**")
 
     with c6:
         fig_pca_sc, ax2 = plt.subplots(figsize=(6, 4))
-        y_train_align = y_train.iloc[:X_pca_full.shape[0]]
-        sns.scatterplot(x=X_pca_full[:, 0], y=X_pca_full[:, 1], hue=y_train_align, alpha=0.7, ax=ax2)
-        ax2.set_xlabel("PC1")
-        ax2.set_ylabel("PC2")
-        ax2.set_title("PCA: PC1 vs PC2")
-        ax2.legend(title="Clase")
+        y_align = y_train_pca.iloc[:X_pca_full.shape[0]]
+        s2_scatter(ax2, X_pca_full, y_align, xlab="PC1", ylab="PC2", title="PCA: PC1 vs PC2")
         st.pyplot(fig_pca_sc)
 
-    # Loadings y Top-K por PCs seleccionadas
     loadings = pd.DataFrame(
         pca_full.components_.T,
         columns=[f"PC{i+1}" for i in range(pca_full.n_components_)],
-        index=X_train.columns
+        index=X_train_num.columns
     )
-    var_importance = (loadings.iloc[:, :n_pc_target] ** 2).sum(axis=1).sort_values(ascending=False)
-    top_vars_pca = var_importance.head(top_k_pca)
+    var_importance = (loadings.iloc[:, :max(1, n_pc_target)] ** 2).sum(axis=1).sort_values(ascending=False)
+    top_vars_pca = var_importance.head(s2_top_k_pca)
 
     c7, c8 = st.columns(2)
     with c7:
-        st.markdown(f"**Top-{top_k_pca} variables PCA** — sobre {n_pc_target} PCs")
+        st.markdown(f"**Top-{s2_top_k_pca} variables PCA** — sobre {n_pc_target} PCs")
         fig_pca_bar, ax3 = plt.subplots(figsize=(8, 4))
         top_vars_pca.plot(kind="bar", ax=ax3)
         ax3.set_ylabel("Aporte total (suma de cuadrados de loadings)")
@@ -1114,262 +1157,202 @@ else:
         st.pyplot(fig_pca_bar)
 
     with c8:
-        # Resumen con PCA a varianza objetivo (para confirmar números)
-        pca_target = PCA(n_components=var_target_pca)
-        _ = pca_target.fit_transform(X_scaled)
+        pca_target = PCA(n_components=s2_var_target_pca).fit(X_scaled)
         st.markdown("**Resumen (PCA)**")
         st.markdown(
-            f"- Varianza objetivo: **{var_target_pca*100:.0f}%**  \n"
+            f"- Varianza objetivo: **{s2_var_target_pca*100:.0f}%**  \n"
             f"- Componentes usadas: **{pca_target.n_components_}**  \n"
             f"- Varianza acumulada lograda: **{pca_target.explained_variance_ratio_.sum()*100:.2f}%**"
         )
 
-# ______________________________________________________________________________________________________
-# ______________________________________________________________________________________________________
+# ----------------------------------------------------------------------------
+# 2.3. Concatenar matrices (PCA + MCA) y split coherente
+# ----------------------------------------------------------------------------
 st.markdown("## 2.3. Concatenar las dos matrices")
 
-# ========= 0) Preparación: columnas y split común por índices =========
-y_full = df["Stage"]
-num_cols = df.select_dtypes(include=["number"]).columns.tolist()
-cat_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
+# Split base por índices (una sola vez) para mantener coherencia en 2.4–2.6
+y_full_s2 = df_s2["Stage"].copy()
+if len(pd.unique(y_full_s2)) < 2:
+    st.error("❌ 'Stage' debe tener al menos 2 clases para las tareas de clasificación.")
+    st.stop()
 
-# Asegura que 'Stage' no esté en cat_cols
+idx_train, idx_test = train_test_split(df_s2.index, stratify=y_full_s2, test_size=0.33, random_state=1)
+y_train_s2 = y_full_s2.loc[idx_train]; y_test_s2 = y_full_s2.loc[idx_test]
+
+# Numéricas
+num_cols = df_s2.select_dtypes(include=["number"]).columns.tolist()
+X_num_train = df_s2.loc[idx_train, num_cols]
+X_num_test  = df_s2.loc[idx_test,  num_cols]
+
+scaler2 = StandardScaler()
+X_train_scaled2 = scaler2.fit_transform(X_num_train)
+X_test_scaled2  = scaler2.transform(X_num_test)
+
+pca2 = PCA(n_components=min(8, X_num_train.shape[1])).fit(X_train_scaled2)
+X_train_pca = pca2.transform(X_train_scaled2)
+X_test_pca  = pca2.transform(X_test_scaled2)
+
+# Categóricas
+cat_cols = df_s2.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
 cat_cols = [c for c in cat_cols if c != "Stage"]
+X_cat_train = df_s2.loc[idx_train, cat_cols]
+X_cat_test  = df_s2.loc[idx_test,  cat_cols]
 
-# Split por índices para alinear filas entre numéricas y categóricas
-idx_train, idx_test = train_test_split(
-    df.index, stratify=y_full, test_size=0.33, random_state=1
-)
-y_train = y_full.loc[idx_train]
-y_test  = y_full.loc[idx_test]
+X_train_dum = pd.get_dummies(X_cat_train, drop_first=False)
+X_test_dum  = pd.get_dummies(X_cat_test,  drop_first=False)
+X_test_dum  = X_test_dum.reindex(columns=X_train_dum.columns, fill_value=0)
 
-X_num_train = df.loc[idx_train, num_cols]
-X_num_test  = df.loc[idx_test,  num_cols]
+mca2 = prince.MCA(n_components=min(6, X_train_dum.shape[1]), benzecri=True, random_state=42).fit(X_train_dum)
+X_train_mca = mca2.transform(X_train_dum)
+X_test_mca  = mca2.transform(X_test_dum)
 
-X_cat_train = df.loc[idx_train, cat_cols]
-X_cat_test  = df.loc[idx_test,  cat_cols]
+# DataFrames finales
+X_train_pca_df = pd.DataFrame(X_train_pca, index=idx_train, columns=[f"PCA_{i+1}" for i in range(X_train_pca.shape[1])])
+X_test_pca_df  = pd.DataFrame(X_test_pca,  index=idx_test,  columns=[f"PCA_{i+1}" for i in range(X_test_pca.shape[1])])
 
-# ========= 1) PCA sobre numéricas =========
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_num_train)  # fit solo con train
-X_test_scaled  = scaler.transform(X_num_test)       # transform en test
+X_train_mca_df = pd.DataFrame(X_train_mca.values, index=idx_train, columns=[f"MCA_{i+1}" for i in range(X_train_mca.shape[1])])
+X_test_mca_df  = pd.DataFrame(X_test_mca.values,  index=idx_test,  columns=[f"MCA_{i+1}" for i in range(X_test_mca.shape[1])])
 
-pca = PCA(n_components=8)
-X_train_pca = pca.fit_transform(X_train_scaled)
-X_test_pca  = pca.transform(X_test_scaled)
-
-# ========= 2) MCA sobre categóricas con columnas alineadas =========
-# Dummies en train y test, y alineación de columnas
-X_train_encoded = pd.get_dummies(X_cat_train, drop_first=False)
-X_test_encoded  = pd.get_dummies(X_cat_test,  drop_first=False)
-
-# Alinear columnas de test a las de train (rellenar faltantes con 0)
-X_test_encoded = X_test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
-
-# Modelo prince.MCA (evita sombrear el import `mca`)
-mca_pr = prince.MCA(n_components=6, random_state=42)
-mca_pr = mca_pr.fit(X_train_encoded)
-
-X_train_mca = mca_pr.transform(X_train_encoded)
-X_test_mca  = mca_pr.transform(X_test_encoded)
-
-# ========= 3) DataFrames con índices y nombres de columnas =========
-X_train_pca_df = pd.DataFrame(
-    X_train_pca, index=idx_train, columns=[f"PCA_{i+1}" for i in range(X_train_pca.shape[1])]
-)
-X_test_pca_df = pd.DataFrame(
-    X_test_pca, index=idx_test, columns=[f"PCA_{i+1}" for i in range(X_test_pca.shape[1])]
-)
-
-# prince devuelve DataFrame; asegurar índices correctos y nombres
-X_train_mca_df = pd.DataFrame(
-    X_train_mca.values, index=idx_train, columns=[f"MCA_{i+1}" for i in range(X_train_mca.shape[1])]
-)
-X_test_mca_df = pd.DataFrame(
-    X_test_mca.values, index=idx_test, columns=[f"MCA_{i+1}" for i in range(X_test_mca.shape[1])]
-)
-
-# ========= 4) Concatenación final =========
 X_train_final = pd.concat([X_train_pca_df, X_train_mca_df], axis=1)
 X_test_final  = pd.concat([X_test_pca_df,  X_test_mca_df],  axis=1)
 
-# ========= 5) Vista rápida =========
 cA, cB = st.columns(2)
 with cA:
-    st.subheader("Train: PCA+MCA (shape)")
-    st.write(X_train_final.shape)
-    st.dataframe(X_train_final.head(10))
+    st.subheader("Train: PCA+MCA (shape)"); st.write(X_train_final.shape); st.dataframe(X_train_final.head(10))
 with cB:
-    st.subheader("Test: PCA+MCA (shape)")
-    st.write(X_test_final.shape)
-    st.dataframe(X_test_final.head(10))
-# ______________________________________________________________________________________________________
+    st.subheader("Test: PCA+MCA (shape)");  st.write(X_test_final.shape);  st.dataframe(X_test_final.head(10))
 
-# __________________________________________________________________________________________________
-st.markdown("""## 2.4. Modelado""")
+# ----------------------------------------------------------------------------
+# 2.4. Modelado (CV seguro y aislado)
+# ----------------------------------------------------------------------------
+st.markdown("## 2.4. Modelado")
 
-
-# --- Filtro único de la subsección (por defecto: Logistic Regression)
 model_name_24 = st.selectbox(
-    "Elige el modelo a evaluar (CV 5-fold)",
+    "Elige el modelo a evaluar (CV estratificado)",
     options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
-    index=0,  # Logistic Regression por defecto
-    key="model_sel_24"
+    index=0, key="s2_model_sel_24"
 )
 
-# --- Construcción del modelo según selección
-def build_model(name: str):
+def s2_build_model(name: str):
     if name == "Logistic Regression":
         return LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=2000, class_weight="balanced", random_state=42)
     if name == "KNN":
         return KNeighborsClassifier()
     if name == "SVC":
-        return SVC()  # por defecto rbf; podrías envolver en Pipeline con StandardScaler si lo deseas
+        return SVC()
     if name == "Decision Tree":
         return DecisionTreeClassifier(random_state=42)
     if name == "Random Forest":
         return RandomForestClassifier(random_state=42)
     raise ValueError("Modelo no soportado")
 
-modelo_24 = build_model(model_name_24)
-
-# --- CV estratificado para mayor estabilidad
-cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-scores = cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
+modelo_24 = s2_build_model(model_name_24)
+cv_eval = s2_make_safe_cv(y_train_s2, max_splits=5)
+scores = cross_val_score(modelo_24, X_train_final, y_train_s2, cv=cv_eval, scoring="accuracy", n_jobs=-1)
 
 st.subheader("Resultados de validación cruzada")
 st.write(f"**Modelo:** {model_name_24}")
 st.write(f"**Accuracy (media CV):** {scores.mean():.4f}  |  **Std:** {scores.std():.4f}")
 
-# __________________________________________________________________________________________________
-st.markdown("""## 2.5. Ajuste de hiperparámetros""")
+# ----------------------------------------------------------------------------
+# 2.5. Ajuste de hiperparámetros (aislado)
+# ----------------------------------------------------------------------------
+st.markdown("## 2.5. Ajuste de hiperparámetros")
 
-from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import randint, uniform, loguniform
-
-# --- Filtro único de la subsección (por defecto: Logistic Regression)
 model_name_25 = st.selectbox(
     "Elige el modelo a ajustar (RandomizedSearchCV)",
     options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
-    index=0,
-    key="model_sel_25"
+    index=0, key="s2_model_sel_25"
 )
 
-# --- Espacios de búsqueda por modelo (evitando combinaciones inválidas)
-def get_model_and_searchspace(name: str):
+def s2_get_model_and_searchspace(name: str):
     if name == "Logistic Regression":
         model = LogisticRegression(multi_class="multinomial", solver="lbfgs", penalty="l2", max_iter=5000, class_weight="balanced", random_state=42)
-        # solo C para evitar incompatibilidades
         param_dist = {"C": loguniform(1e-3, 1e2)}
-        return model, param_dist, "accuracy"
+        return model, param_dist
     if name == "KNN":
         model = KNeighborsClassifier()
-        param_dist = {
-            "n_neighbors": randint(3, 30),
-            "weights": ["uniform", "distance"],
-            "metric": ["euclidean", "manhattan", "minkowski"],
-        }
-        return model, param_dist, "accuracy"
+        param_dist = {"n_neighbors": randint(3, 30), "weights": ["uniform", "distance"], "metric": ["euclidean", "manhattan", "minkowski"]}
+        return model, param_dist
     if name == "SVC":
         model = SVC(probability=False, random_state=42)
-        # espacio mixto simple; si kernel='linear', gamma se ignora; no pasa nada en SVC
-        param_dist = {
-            "C": loguniform(1e-2, 1e2),
-            "kernel": ["linear", "rbf", "poly"],
-            "gamma": ["scale", "auto"],
-            "degree": randint(2, 5),  # aplica si poly
-        }
-        return model, param_dist, "accuracy"
+        param_dist = {"C": loguniform(1e-2, 1e2), "kernel": ["linear", "rbf", "poly"], "gamma": ["scale", "auto"], "degree": randint(2, 5)}
+        return model, param_dist
     if name == "Decision Tree":
         model = DecisionTreeClassifier(random_state=42)
-        param_dist = {
-            "max_depth": randint(3, 20),
-            "min_samples_split": randint(2, 10),
-            #"min_samples_leaf": randint(1, 20),
-            "criterion": ["gini", "entropy"],
-        }
-        return model, param_dist, "accuracy"
+        param_dist = {"max_depth": randint(3, 20), "min_samples_split": randint(2, 10), "criterion": ["gini", "entropy"]}
+        return model, param_dist
     if name == "Random Forest":
         model = RandomForestClassifier(random_state=42, n_jobs=-1)
-        param_dist = {
-            "n_estimators": randint(100, 600),
-            "max_depth": randint(3, 40),
-            "min_samples_split": randint(2, 20),
-            "min_samples_leaf": randint(1, 20),
-            "max_features": ["sqrt", "log2", None],
-        }
-        return model, param_dist, "accuracy"
+        param_dist = {"n_estimators": randint(100, 600), "max_depth": randint(3, 40), "min_samples_split": randint(2, 20), "min_samples_leaf": randint(1, 20), "max_features": ["sqrt", "log2", None]}
+        return model, param_dist
     raise ValueError("Modelo no soportado")
 
-estimator_25, searchspace_25, metric_25 = get_model_and_searchspace(model_name_25)
+estimator_25, searchspace_25 = s2_get_model_and_searchspace(model_name_25)
+cv_tune = s2_make_safe_cv(y_train_s2, max_splits=5)
 
-cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 random_search = RandomizedSearchCV(
     estimator=estimator_25,
     param_distributions=searchspace_25,
-    n_iter=25,
-    cv=cv5,
-    scoring=metric_25,
-    n_jobs=-1,
-    verbose=1,
-    random_state=42
+    n_iter=25, cv=cv_tune, scoring="accuracy",
+    n_jobs=-1, verbose=1, random_state=42
 )
-random_search.fit(X_train_final, y_train)
+random_search.fit(X_train_final, y_train_s2)
 
 st.subheader("Mejores hiperparámetros")
 st.write(f"**Modelo:** {model_name_25}")
 st.write("**Best params:**", random_search.best_params_)
-st.write(f"**Mejor {metric_25} (CV):** {random_search.best_score_:.4f}")
+st.write(f"**Mejor accuracy (CV):** {random_search.best_score_:.4f}")
 
-# Guardar el mejor estimador en session_state para reusarlo en 2.6
-if "best_estimators" not in st.session_state:
-    st.session_state.best_estimators = {}
-st.session_state.best_estimators[model_name_25] = random_search.best_estimator_
+if "s2_best_estimators" not in st.session_state:
+    st.session_state.s2_best_estimators = {}
+st.session_state.s2_best_estimators[model_name_25] = random_search.best_estimator_
 
-# __________________________________________________________________________________________________
-st.markdown("""## 2.6. Comparación de modelos optimizados""")
+# ----------------------------------------------------------------------------
+# 2.6. Comparación de modelos optimizados (aislado)
+# ----------------------------------------------------------------------------
+st.markdown("## 2.6. Comparación de modelos optimizados")
 
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-
-# --- Filtro único de la subsección (por defecto: Logistic Regression)
 model_name_26 = st.selectbox(
     "Elige el modelo a evaluar en Test",
     options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
-    index=0,
-    key="model_sel_26"
+    index=0, key="s2_model_sel_26"
 )
 
-# Recuperar el mejor estimador si ya fue ajustado en 2.5; si no, construir y entrenar rápido
-if "best_estimators" in st.session_state and model_name_26 in st.session_state.best_estimators:
-    modelo_26 = st.session_state.best_estimators[model_name_26]
+if "s2_best_estimators" in st.session_state and model_name_26 in st.session_state.s2_best_estimators:
+    modelo_26 = st.session_state.s2_best_estimators[model_name_26]
 else:
-    # fallback: usa el modelo por defecto sin tuning
-    modelo_26 = build_model(model_name_26)
-    # (opcional) podrías entrenar sobre todo el train antes de evaluar
-    # pero la comparación se verá mejor si haces CV o tuning. Aquí entrenamos simple:
-    modelo_26.fit(X_train_final, y_train)
+    modelo_26 = s2_build_model(model_name_26)
+    modelo_26.fit(X_train_final, y_train_s2)
 
-# CV del modelo final (opcional para mostrar referencia)
-scores_cv = cross_val_score(modelo_26, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
-mean_cv = scores_cv.mean()
-std_cv = scores_cv.std()
+cv_ref = s2_make_safe_cv(y_train_s2, max_splits=5)
+scores_cv = cross_val_score(modelo_26, X_train_final, y_train_s2, cv=cv_ref, scoring="accuracy", n_jobs=-1)
 
-# Entrenamiento en train y evaluación en test
-modelo_26.fit(X_train_final, y_train)
-y_pred = modelo_26.predict(X_test_final)
-acc_test = accuracy_score(y_test, y_pred)
+modelo_26.fit(X_train_final, y_train_s2)
+y_pred_s2 = modelo_26.predict(X_test_final)
+acc_test_s2 = accuracy_score(y_test_s2, y_pred_s2)
 
 st.markdown(f"### 📌 Modelo: {model_name_26}")
-st.markdown(f"**Accuracy CV (media ± std):** {mean_cv:.4f} ± {std_cv:.4f}")
-st.markdown(f"**Accuracy Test:** {acc_test:.4f}")
+st.markdown(f"**Accuracy CV (media ± std):** {scores_cv.mean():.4f} ± {scores_cv.std():.4f}")
+st.markdown(f"**Accuracy Test:** {acc_test_s2:.4f}")
 st.text("📋 Classification Report (Test):")
-st.text(classification_report(y_test, y_pred))
+st.text(classification_report(y_test_s2, y_pred_s2))
 st.text("🧩 Matriz de Confusión (Test):")
-st.write(pd.DataFrame(confusion_matrix(y_test, y_pred), index=sorted(y_test.unique()), columns=sorted(y_test.unique())))
+st.write(pd.DataFrame(confusion_matrix(y_test_s2, y_pred_s2),
+                      index=sorted(pd.unique(y_test_s2)),
+                      columns=sorted(pd.unique(y_test_s2))))
+
+
+
 
 
 
 # === FIN SECCIÓN 2 ===
+
+
+
+
+
 
 
 
