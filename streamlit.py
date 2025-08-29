@@ -11,6 +11,7 @@ import plotly.express as px
 import prince
 
 from sklearn import set_config
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OrdinalEncoder
@@ -44,6 +45,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 import mca
 from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
 from sklearn.decomposition import PCA
 from scipy.stats import uniform
 from scipy.stats import randint
@@ -905,8 +907,12 @@ def s14_build_model(name: str):
         return DecisionTreeClassifier(random_state=42)
     if name == "Random Forest":
         return RandomForestClassifier(random_state=42)
+    if name == "ExtraTrees":
+        return ExtraTreesClassifier(random_state=42)
+    if name == "HistGradientBoosting":
+        return HistGradientBoostingClassifier(random_state=42)
     raise ValueError("Modelo no soportado")
-
+    
 # ===== Reutilizar transformaciones de 1.3 si existen; si no, fallback mínimo =====
 try:
     X_train_14 = s13_X_train_t
@@ -956,8 +962,17 @@ except NameError:
 # ===== UI de selección de modelo =====
 model_name_14 = st.selectbox(
     "Elige el modelo a evaluar (CV estratificado, aislado 1.4)",
-    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
-    index=0, key="s14_model_sel"
+    options=[
+        "Logistic Regression",
+        "KNN",
+        "SVC",
+        "Decision Tree",
+        "Random Forest",
+        "ExtraTrees",
+        "HistGradientBoosting",
+    ],
+    index=0,
+    key="s14_model_sel"
 )
 
 modelo_14 = s14_build_model(model_name_14)
