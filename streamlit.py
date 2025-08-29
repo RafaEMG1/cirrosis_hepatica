@@ -1546,19 +1546,19 @@ st.markdown(f"""
 
 
 
-
-
 # =============================
-# 2.7. PIPELINE: PREPROCESAMIENTO + PCA + OVERSAMPLING + BÚSQUEDA
+# 4. PIPELINE INTEGRAL (Streamlit): PREPROCESAMIENTO + PCA + OVERSAMPLING + BÚSQUEDA
 # =============================
-# Esta sección es **auto-contenida** y reutiliza el DataFrame global `df`.
-# No depende de estados previos de 2.3–2.6. Usa claves únicas para evitar colisiones.
+# Sección completa para colocar **después de la Sección 3 (RFE)**.
+# - Usa claves únicas con prefijo `s4_` para evitar DuplicateWidgetID.
+# - Supone que existe un DataFrame global `df` y la columna objetivo por defecto es 'Stage'.
+# - Puedes llamar a `sec_4_pipeline(df)` desde tu menú/navegación de Streamlit.
 
 import numpy as np
 import pandas as pd
+import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
-import streamlit as st
 
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, StratifiedKFold
 from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
@@ -1577,49 +1577,63 @@ from scipy.stats import randint, uniform, loguniform
 from imblearn.over_sampling import ADASYN, RandomOverSampler
 from imblearn.pipeline import Pipeline as ImbPipeline
 
-st.markdown("""## 2.7. Pipeline integral (num+cat → imputación/escala/OHE → PCA → Oversampling → Búsqueda)
 
-**Objetivo**: probar distintos modelos con un *pipeline* completo, optimizar hiperparámetros con `RandomizedSearchCV` (scoring = F1-macro) y mostrar una **tabla resumen** de métricas en *test*.
-""")
+def sec_4_pipeline(df: pd.DataFrame, target_col: str = "Stage"):
+    """
+    Sección 4 – Pipeline integral (num+cat → imputación/escala/OHE → PCA → Oversampling → Búsqueda)
+    - Optimiza con RandomizedSearchCV (scoring='f1_macro').
+    - Muestra tabla-resumen ordenada por F1-macro en Test y un expander con mejores hiperparámetros.
+    - (Opcional) Visualiza la distribución de clases tras oversampling para el mejor RandomForest.
+    """
 
-# -------------------------
-# 0) Preparar X, y y detectar tipos
-# -------------------------
-if "Stage" not in df.columns:
-    st.error("❌ No se encontró la columna objetivo 'Stage' en df.")
-else:
-    y_raw = df["Stage"].copy()
-    X_raw = df.drop(columns=["Stage"], errors="ignore").copy()
+    st.markdown("""
+    ## 4. Pipeline integral (Preprocesamiento + PCA + Oversampling + Búsqueda)
+    **Objetivo:** evaluar múltiples modelos con un *pipeline* completo y comparar por **F1-macro** (adecuado ante desbalance).
+    """)
+
+    # -------------------------
+    # 0) Validación de datos y *split*
+    # -------------------------
+    if target_col not in df.columns:
+        st.error(f"❌ No se encontró la columna objetivo '{target_col}'.")
+        return
+
+    y_raw = df[target_col].copy()
+    X_raw = df.drop(columns=[target_col], errors="ignore").copy()
 
     num_var = X_raw.select_dtypes(include=["float64", "int64", "float32", "int32", "number"]).columns.tolist()
     cat_var = X_raw.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
 
-    # Split estratificado
+    if len(num_var) == 0 and len(cat_var) == 0:
+        st.error("❌ No se detectaron columnas numéricas ni categóricas en `df`.")
+        return
+
     X_train, X_test, y_train, y_test = train_test_split(
         X_raw, y_raw, test_size=0.33, random_state=42, stratify=y_raw
     )
 
-    # Para algunos clasificadores/metricas es más seguro tener y como etiquetas enteras
-    le_27 = LabelEncoder()
-    y_train_encoded = le_27.fit_transform(y_train)
-    y_test_encoded  = le_27.transform(y_test)
+    # Etiquetas codificadas para clasificadores que operan con enteros
+    le_s4 = LabelEncoder()
+    y_train_encoded = le_s4.fit_transform(y_train)
+    y_test_encoded  = le_s4.transform(y_test)
 
     # -------------------------
-    # 1) Preprocesadores
+    # 1) Preprocesadores (num/cat) + PCA
     # -------------------------
     numerical_transformer = Pipeline(steps=[
         ("imputer", SimpleImputer(strategy="mean")),
         ("scaler", StandardScaler()),
     ])
 
+    # Compatibilidad con distintas versiones de scikit-learn
     try:
-        OHE27 = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+        OHE_s4 = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
     except TypeError:
-        OHE27 = OneHotEncoder(handle_unknown="ignore", sparse=False)
+        OHE_s4 = OneHotEncoder(handle_unknown="ignore", sparse=False)
 
     categorical_transformer = Pipeline(steps=[
         ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("encoder", OHE27),
+        ("encoder", OHE_s4),
     ])
 
     preprocessor = ColumnTransformer(
@@ -1629,26 +1643,24 @@ else:
         ]
     )
 
-    # PCA con varianza objetivo
     var_target = st.slider(
         "Varianza objetivo PCA (%)",
         min_value=80, max_value=99, value=90, step=1,
-        key="s27_var_target"
+        key="s4_var_target"
     ) / 100.0
     pca = PCA(n_components=var_target)
 
-    # Oversampler selector
+    # -------------------------
+    # 2) Oversampler y modelos + espacios de búsqueda
+    # -------------------------
     sampler_name = st.selectbox(
         "Técnica de *oversampling*",
         options=["RandomOverSampler", "ADASYN"],
         index=1,
-        key="s27_sampler"
+        key="s4_sampler"
     )
     sampler = ADASYN(random_state=42) if sampler_name == "ADASYN" else RandomOverSampler(random_state=42)
 
-    # -------------------------
-    # 2) Modelos y espacios de búsqueda
-    # -------------------------
     models = {
         "RandomForest": RandomForestClassifier(random_state=42),
         "ExtraTrees": ExtraTreesClassifier(random_state=42),
@@ -1713,10 +1725,10 @@ else:
         "Modelos a probar",
         options=list(models.keys()),
         default=["RandomForest", "ExtraTrees", "LogisticRegression"],
-        key="s27_model_sel"
+        key="s4_model_sel"
     )
 
-    n_iter = st.slider("Iteraciones de RandomizedSearchCV", 5, 40, 15, 1, key="s27_niter")
+    n_iter = st.slider("Iteraciones de RandomizedSearchCV", 5, 40, 15, 1, key="s4_niter")
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
     # -------------------------
@@ -1727,10 +1739,10 @@ else:
     st.info("Se usa **F1-macro** como métrica principal (adecuada ante desbalance).")
 
     for name in modelos_a_probar:
-        st.write(f"\n**Entrenando {name}** …")
+        st.write(f"
+**Entrenando {name}** …")
 
         clf = models[name]
-        # ImbPipeline para que el oversampling ocurra **después** del preprocesado y **antes** del clasificador
         pipe = ImbPipeline(steps=[
             ("preprocessor", preprocessor),
             ("oversampler", sampler),
@@ -1750,11 +1762,9 @@ else:
         )
         search.fit(X_train, y_train_encoded)
 
-        # Predicciones en test
         y_pred = search.predict(X_test)
         report = classification_report(y_test_encoded, y_pred, output_dict=True)
 
-        # Guardar
         results[name] = {
             "best_params": search.best_params_,
             "classification_report": report,
@@ -1763,7 +1773,7 @@ else:
         }
 
     # -------------------------
-    # 4) Tabla resumen (binaria o multiclase -> usa macro avg)
+    # 4) Tabla resumen (binaria o multiclase → usa macro avg)
     # -------------------------
     OVERSAMPLER_SUFFIX = f" ({sampler_name})"
 
@@ -1829,16 +1839,16 @@ else:
     st.dataframe(df_tabla, use_container_width=True)
 
     # -------------------------
-    # 5) Extras: ver mejor estimador y *oversampling* aplicado
+    # 5) Expander – mejores hiperparámetros por modelo
     # -------------------------
     with st.expander("🔎 Ver detalles del mejor estimador por modelo"):
         for name, info in results.items():
             st.markdown(f"**{name}** – *Best params*: `{info['best_params']}`")
 
     # -------------------------
-    # 6) (Opcional) Extraer muestras *resampleadas* del mejor pipeline seleccionado
+    # 6) (Opcional) Visualizar tamaños tras oversampling con el mejor RandomForest
     # -------------------------
-    st.markdown("**(Opcional)** Visualizar tamaños tras *oversampling* con el mejor **RandomForest** (si fue entrenado)")
+    st.markdown("**(Opcional)** Distribución de clases tras oversampling para el mejor **RandomForest**")
     if "RandomForest" in results:
         best_rf = results["RandomForest"]["best_estimator"]
         try:
@@ -1849,8 +1859,18 @@ else:
                 X_res, y_res = overs.fit_resample(X_tr_proc, y_train_encoded)
                 unique, counts = np.unique(y_res, return_counts=True)
                 dist = pd.DataFrame({"Clase": unique, "Conteo": counts})
-                dist["Clase"] = dist["Clase"].map(dict(enumerate(le_27.classes_)))
+                dist["Clase"] = dist["Clase"].map(dict(enumerate(le_s4.classes_)))
                 st.write("Distribución tras oversampling (RandomForest):")
                 st.dataframe(dist, use_container_width=True)
         except Exception as e:
             st.warning(f"No se pudo mostrar la distribución tras oversampling: {e}")
+
+
+# =============================
+# (OPCIONAL) Ejemplo de integración tras tu Sección 3 (RFE):
+# Llama a esta función desde tu flujo principal, por ejemplo:
+# if seccion_elegida == "4. Pipeline integral":
+#     sec_4_pipeline(df)
+# =============================
+
+
