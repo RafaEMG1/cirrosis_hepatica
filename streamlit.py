@@ -763,103 +763,112 @@ else:
 
 
 # __________________________________________________________________________________________________
-st.markdown("## 1.3. Unión de variables categóricas y numéricas")
+st.markdown("## 1.3. Unión de variables categóricas y numéricas (SECCIÓN AISLADA)")
 
-# === Dummies categóricas a mantener (de OHE) ===
-ohe_keep = [
+# ====== CONFIG LOCAL DE LA SECCIÓN (no global) ======
+s13_ohe_keep = [
     "Hepatomegaly_N", "Hepatomegaly_Y",
     "Status_D", "Status_C",           # si existe 'Status_CL' quedará fuera a propósito
     "Edema_N", "Edema_S", "Edema_Y",
     "Spiders_Y", "Spiders_N",
 ]
 
-# --- Columnas de entrada ---
-num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-cat_cols = df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
-for L in (num_cols, cat_cols):
-    if "Stage" in L:
-        L.remove("Stage")
+# --- Selección de columnas desde df sin modificarlo ---
+s13_num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+s13_cat_cols = df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
+for _L in (s13_num_cols, s13_cat_cols):
+    if "Stage" in _L:
+        _L.remove("Stage")
 
-X = df[num_cols + cat_cols].copy()
-y = df["Stage"].copy()
+# --- Construcción de X/y LOCALES (copias) ---
+s13_X = df[s13_num_cols + s13_cat_cols].copy()
+s13_y = df["Stage"].copy()
 
 # === Compatibilidad OHE (sparse_output vs sparse) ===
 try:
-    OHE = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+    s13_OHE = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
 except TypeError:
-    OHE = OneHotEncoder(handle_unknown="ignore", sparse=False)
+    s13_OHE = OneHotEncoder(handle_unknown="ignore", sparse=False)
 
-# === set_config para conservar nombres ===
-set_config(transform_output="pandas")
-
-# --- Helpers seguros para columnas OHE con prefijos de ColumnTransformer/Pipeline ---
-def _endswith_any(colname: str, suffixes: list[str]) -> bool:
+# --- Helpers que NO mutan y que son locales a 1.3 ---
+def s13__endswith_any(colname: str, suffixes: list[str]) -> bool:
     return any(str(colname).endswith(suf) for suf in suffixes)
 
-def select_keep_cols(X_df: pd.DataFrame) -> pd.DataFrame:
+def s13_select_keep_cols(X_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Selecciona columnas OHE de interés tolerando prefijos como 'cat__' o 'ohe__'.
-    Si falta alguna, la crea en 0 para no romper el flujo.
+    Selecciona columnas OHE objetivo tolerando prefijos como 'cat__' o 'ohe__'.
+    No muta X_df; crea columnas faltantes en una copia.
     """
+    Xc = X_df.copy()
     out_cols = []
-    for target in ohe_keep:
-        # Buscar columnas cuyo nombre termine exactamente en el dummy objetivo
-        matches = [c for c in X_df.columns if _endswith_any(c, [target])]
+    for target in s13_ohe_keep:
+        matches = [c for c in Xc.columns if s13__endswith_any(c, [target])]
         if matches:
             out_cols.extend(matches)
         else:
-            # crear columna faltante (sin prefijos)
-            X_df[target] = 0
+            # crear columna faltante en copia
+            Xc[target] = 0
             out_cols.append(target)
-    # El orden de salida respeta ohe_keep
-    # si hubo múltiples 'matches' (ej. cat__ / ohe__), priorizamos el primero
-    # y dejamos cualquier duplicado al final de la lista
-    # (en la práctica no deben existir duplicados tras append controlado)
-    return X_df[out_cols]
+    return Xc[out_cols]
 
-def _keep_feature_names(_, input_features):
-    # Nombres de salida: preservar exactamente ohe_keep para estabilidad
-    return np.array(ohe_keep, dtype=object)
+def s13_keep_feature_names(_, input_features):
+    # Devolver exactamente los nombres esperados; estable y local
+    return np.array(s13_ohe_keep, dtype=object)
 
-# === Pipelines ===
-num_pipe = Pipeline(steps=[
+# === Pipelines LOCALES ===
+s13_num_pipe = Pipeline(steps=[
     ("imputer", SimpleImputer(strategy="median")),
     ("scaler", StandardScaler())
 ])
 
-cat_pipe = Pipeline(steps=[
+s13_cat_pipe = Pipeline(steps=[
     ("imputer", SimpleImputer(strategy="most_frequent")),
-    ("ohe", OHE),
-    ("select", FunctionTransformer(select_keep_cols, feature_names_out=_keep_feature_names))
+    ("ohe", s13_OHE),
+    ("select", FunctionTransformer(s13_select_keep_cols, feature_names_out=s13_keep_feature_names))
 ])
 
-preprocess = ColumnTransformer(
+s13_preprocess = ColumnTransformer(
     transformers=[
-        ("num", num_pipe, num_cols),
-        ("cat", cat_pipe, cat_cols)
+        ("num", s13_num_pipe, s13_num_cols),
+        ("cat", s13_cat_pipe, s13_cat_cols)
     ],
-    remainder="drop"
+    remainder="drop",
+    verbose_feature_names_out=False
 )
 
-# === Split ===
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.33, random_state=42, stratify=y
+# >>> IMPORTANTÍSIMO: salida a pandas SOLO en este objeto (no set_config global)
+try:
+    s13_preprocess.set_output(transform="pandas")
+except Exception:
+    # En versiones antiguas de sklearn no existe set_output; seguirá devolviendo np.ndarray
+    pass
+
+# === Split LOCAL ===
+s13_X_train, s13_X_test, s13_y_train, s13_y_test = train_test_split(
+    s13_X, s13_y, test_size=0.33, random_state=42, stratify=s13_y
 )
 
-# === Fit/Transform para ver forma y columnas ===
-X_train_t = preprocess.fit_transform(X_train)
-X_test_t  = preprocess.transform(X_test)
+# === Fit/Transform LOCAL ===
+s13_X_train_t = s13_preprocess.fit_transform(s13_X_train)
+s13_X_test_t  = s13_preprocess.transform(s13_X_test)
 
-st.markdown("**Vista rápida del dataset transformado**")
+# === OUTPUT SOLO DE LA SECCIÓN 1.3 ===
+st.markdown("**Vista rápida del dataset transformado (Sección 1.3 aislada)**")
 c1, c2 = st.columns(2)
 with c1:
-    st.write("**Train shape**:", X_train_t.shape)
-    st.dataframe(X_train_t.head(8), use_container_width=True)
+    st.write("**Train shape**:", s13_X_train_t.shape)
+    st.dataframe(
+        s13_X_train_t.head(8) if isinstance(s13_X_train_t, pd.DataFrame)
+        else pd.DataFrame(s13_X_train_t).head(8),
+        use_container_width=True
+    )
 with c2:
-    st.write("**Test shape**:", X_test_t.shape)
-    st.dataframe(X_test_t.head(8), use_container_width=True)
-
-
+    st.write("**Test shape**:", s13_X_test_t.shape)
+    st.dataframe(
+        s13_X_test_t.head(8) if isinstance(s13_X_test_t, pd.DataFrame)
+        else pd.DataFrame(s13_X_test_t).head(8),
+        use_container_width=True
+    )
 
 
 
