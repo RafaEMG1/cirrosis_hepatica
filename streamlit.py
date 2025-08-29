@@ -1001,6 +1001,116 @@ st.write(pd.DataFrame(confusion_matrix(y_test_14, y_pred_14),
 
 
 
+# __________________________________________________________________________________________________
+st.markdown("## 1.5. Búsqueda de hiperparámetros (Randomized Search)")
+
+# Reutilizar datos procesados de la sección 1.3
+try:
+    X_train_15 = s13_X_train_t
+    X_test_15  = s13_X_test_t
+    y_train_15 = s13_y_train
+    y_test_15  = s13_y_test
+except NameError:
+    st.error("❌ No se encontraron datos procesados de la Sección 1.3. Ejecuta esa sección primero.")
+    st.stop()
+
+# Selección del modelo para ajustar
+model_name_15 = st.selectbox(
+    "Elige el modelo para Randomized Search",
+    options=[
+        "Logistic Regression",
+        "KNN",
+        "SVC",
+        "Decision Tree",
+        "Random Forest",
+        "ExtraTrees",
+        "HistGradientBoosting"
+    ],
+    index=0,
+    key="s15_model_sel"
+)
+
+# Espacios de búsqueda para cada modelo
+def get_search_space(name):
+    if name == "Logistic Regression":
+        return LogisticRegression(max_iter=5000, multi_class="multinomial", solver="lbfgs"), {
+            "C": uniform(0.01, 10)
+        }
+    if name == "KNN":
+        return KNeighborsClassifier(), {
+            "n_neighbors": randint(3, 30),
+            "weights": ["uniform", "distance"],
+            "metric": ["euclidean", "manhattan", "minkowski"]
+        }
+    if name == "SVC":
+        return SVC(), {
+            "C": uniform(0.01, 10),
+            "kernel": ["linear", "rbf", "poly"],
+            "gamma": ["scale", "auto"]
+        }
+    if name == "Decision Tree":
+        return DecisionTreeClassifier(random_state=42), {
+            "max_depth": randint(3, 20),
+            "min_samples_split": randint(2, 10),
+            "criterion": ["gini", "entropy"]
+        }
+    if name == "Random Forest":
+        return RandomForestClassifier(random_state=42), {
+            "n_estimators": randint(50, 300),
+            "max_depth": randint(3, 20),
+            "min_samples_split": randint(2, 10),
+            "min_samples_leaf": randint(1, 10),
+            "max_features": ["sqrt", "log2"]
+        }
+    if name == "ExtraTrees":
+        return ExtraTreesClassifier(random_state=42), {
+            "n_estimators": randint(50, 300),
+            "max_depth": randint(3, 20),
+            "min_samples_split": randint(2, 10),
+            "min_samples_leaf": randint(1, 10),
+            "max_features": ["sqrt", "log2"]
+        }
+    if name == "HistGradientBoosting":
+        return HistGradientBoostingClassifier(random_state=42), {
+            "max_iter": randint(50, 300),
+            "max_depth": randint(3, 20),
+            "learning_rate": uniform(0.01, 0.3),
+            "min_samples_leaf": randint(1, 20)
+        }
+
+# Obtener modelo y espacio
+model_15, param_dist = get_search_space(model_name_15)
+
+# Validación cruzada
+cv_15 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+# Randomized Search
+rs = RandomizedSearchCV(
+    estimator=model_15,
+    param_distributions=param_dist,
+    n_iter=20,
+    cv=cv_15,
+    scoring="accuracy",
+    n_jobs=-1,
+    random_state=42
+)
+
+with st.spinner("⏳ Buscando mejores hiperparámetros..."):
+    rs.fit(X_train_15, y_train_15)
+
+# Resultados
+st.subheader("Mejores hiperparámetros encontrados")
+st.write(rs.best_params_)
+st.write(f"**Mejor Accuracy CV:** {rs.best_score_:.4f}")
+
+# Evaluación en Test
+best_model = rs.best_estimator_
+y_pred_15 = best_model.predict(X_test_15)
+
+st.markdown("### Evaluación en Test")
+st.write(f"**Accuracy Test:** {accuracy_score(y_test_15, y_pred_15):.4f}")
+st.text("📋 Classification Report:")
+st.text(classification_report(y_test_15, y_pred_15))
 
 
 
