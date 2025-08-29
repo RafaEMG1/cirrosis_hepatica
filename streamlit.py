@@ -1541,3 +1541,316 @@ st.markdown(f"""
 - Variables seleccionadas: {len(selected_names)}  
 - Nombres: {list(selected_names)}  
 """)
+
+
+
+
+
+
+
+# =============================
+# 2.7. PIPELINE: PREPROCESAMIENTO + PCA + OVERSAMPLING + BÚSQUEDA
+# =============================
+# Esta sección es **auto-contenida** y reutiliza el DataFrame global `df`.
+# No depende de estados previos de 2.3–2.6. Usa claves únicas para evitar colisiones.
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import streamlit as st
+
+from sklearn.model_selection import train_test_split, RandomizedSearchCV, StratifiedKFold
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.decomposition import PCA
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, HistGradientBoostingClassifier
+
+from sklearn.metrics import classification_report
+from scipy.stats import randint, uniform, loguniform
+
+from imblearn.over_sampling import ADASYN, RandomOverSampler
+from imblearn.pipeline import Pipeline as ImbPipeline
+
+st.markdown("""## 2.7. Pipeline integral (num+cat → imputación/escala/OHE → PCA → Oversampling → Búsqueda)
+
+**Objetivo**: probar distintos modelos con un *pipeline* completo, optimizar hiperparámetros con `RandomizedSearchCV` (scoring = F1-macro) y mostrar una **tabla resumen** de métricas en *test*.
+""")
+
+# -------------------------
+# 0) Preparar X, y y detectar tipos
+# -------------------------
+if "Stage" not in df.columns:
+    st.error("❌ No se encontró la columna objetivo 'Stage' en df.")
+else:
+    y_raw = df["Stage"].copy()
+    X_raw = df.drop(columns=["Stage"], errors="ignore").copy()
+
+    num_var = X_raw.select_dtypes(include=["float64", "int64", "float32", "int32", "number"]).columns.tolist()
+    cat_var = X_raw.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
+
+    # Split estratificado
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_raw, y_raw, test_size=0.33, random_state=42, stratify=y_raw
+    )
+
+    # Para algunos clasificadores/metricas es más seguro tener y como etiquetas enteras
+    le_27 = LabelEncoder()
+    y_train_encoded = le_27.fit_transform(y_train)
+    y_test_encoded  = le_27.transform(y_test)
+
+    # -------------------------
+    # 1) Preprocesadores
+    # -------------------------
+    numerical_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="mean")),
+        ("scaler", StandardScaler()),
+    ])
+
+    try:
+        OHE27 = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+    except TypeError:
+        OHE27 = OneHotEncoder(handle_unknown="ignore", sparse=False)
+
+    categorical_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OHE27),
+    ])
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numerical_transformer, num_var),
+            ("cat", categorical_transformer, cat_var),
+        ]
+    )
+
+    # PCA con varianza objetivo
+    var_target = st.slider(
+        "Varianza objetivo PCA (%)",
+        min_value=80, max_value=99, value=90, step=1,
+        key="s27_var_target"
+    ) / 100.0
+    pca = PCA(n_components=var_target)
+
+    # Oversampler selector
+    sampler_name = st.selectbox(
+        "Técnica de *oversampling*",
+        options=["RandomOverSampler", "ADASYN"],
+        index=1,
+        key="s27_sampler"
+    )
+    sampler = ADASYN(random_state=42) if sampler_name == "ADASYN" else RandomOverSampler(random_state=42)
+
+    # -------------------------
+    # 2) Modelos y espacios de búsqueda
+    # -------------------------
+    models = {
+        "RandomForest": RandomForestClassifier(random_state=42),
+        "ExtraTrees": ExtraTreesClassifier(random_state=42),
+        "HistGradientBoosting": HistGradientBoostingClassifier(random_state=42),
+        "LogisticRegression": LogisticRegression(random_state=42),
+        "SVM_Linear": LinearSVC(random_state=42),
+    }
+
+    param_grids = {
+        "RandomForest": {
+            "classifier__n_estimators": randint(50, 200),
+            "classifier__max_depth": randint(5, 30),
+            "classifier__min_samples_split": randint(2, 20),
+            "classifier__min_samples_leaf": randint(1, 20),
+            "classifier__max_features": [None, "sqrt", "log2"],
+            "classifier__bootstrap": [True, False],
+        },
+        "ExtraTrees": {
+            "classifier__n_estimators": randint(50, 200),
+            "classifier__max_depth": randint(5, 30),
+            "classifier__min_samples_split": randint(2, 20),
+            "classifier__min_samples_leaf": randint(1, 20),
+            "classifier__max_features": ["sqrt", "log2", None],
+            "classifier__bootstrap": [True, False],
+        },
+        "HistGradientBoosting": {
+            "classifier__max_iter": randint(50, 200),
+            "classifier__learning_rate": [0.01, 0.05, 0.1, 0.2],
+            "classifier__max_depth": randint(2, 10),
+            "classifier__max_leaf_nodes": randint(10, 50),
+        },
+        "LogisticRegression": [
+            {  # lbfgs: SOLO l2 o None
+                "classifier__solver": ["lbfgs"],
+                "classifier__penalty": ["l2", None],
+                "classifier__C": loguniform(1e-3, 1e3),
+                "classifier__max_iter": [200, 500, 1000],
+                "classifier__multi_class": ["auto", "multinomial"],
+            },
+            {  # saga: l1 o l2
+                "classifier__solver": ["saga"],
+                "classifier__penalty": ["l1", "l2"],
+                "classifier__C": loguniform(1e-3, 1e3),
+                "classifier__max_iter": [200, 500, 1000],
+                "classifier__multi_class": ["auto", "multinomial"],
+            },
+            {  # saga: elasticnet (requiere l1_ratio)
+                "classifier__solver": ["saga"],
+                "classifier__penalty": ["elasticnet"],
+                "classifier__l1_ratio": uniform(0.0, 1.0),
+                "classifier__C": loguniform(1e-3, 1e3),
+                "classifier__max_iter": [200, 500, 1000],
+                "classifier__multi_class": ["auto", "multinomial"],
+            },
+        ],
+        "SVM_Linear": {
+            "classifier__C": loguniform(1e-2, 1e2),
+        },
+    }
+
+    modelos_a_probar = st.multiselect(
+        "Modelos a probar",
+        options=list(models.keys()),
+        default=["RandomForest", "ExtraTrees", "LogisticRegression"],
+        key="s27_model_sel"
+    )
+
+    n_iter = st.slider("Iteraciones de RandomizedSearchCV", 5, 40, 15, 1, key="s27_niter")
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+    # -------------------------
+    # 3) Entrenamiento y evaluación
+    # -------------------------
+    results = {}
+
+    st.info("Se usa **F1-macro** como métrica principal (adecuada ante desbalance).")
+
+    for name in modelos_a_probar:
+        st.write(f"\n**Entrenando {name}** …")
+
+        clf = models[name]
+        # ImbPipeline para que el oversampling ocurra **después** del preprocesado y **antes** del clasificador
+        pipe = ImbPipeline(steps=[
+            ("preprocessor", preprocessor),
+            ("oversampler", sampler),
+            ("pca", pca),
+            ("classifier", clf),
+        ])
+
+        search = RandomizedSearchCV(
+            estimator=pipe,
+            param_distributions=param_grids[name],
+            n_iter=n_iter,
+            cv=cv,
+            scoring="f1_macro",
+            n_jobs=-1,
+            verbose=1,
+            random_state=42,
+        )
+        search.fit(X_train, y_train_encoded)
+
+        # Predicciones en test
+        y_pred = search.predict(X_test)
+        report = classification_report(y_test_encoded, y_pred, output_dict=True)
+
+        # Guardar
+        results[name] = {
+            "best_params": search.best_params_,
+            "classification_report": report,
+            "cv_results": pd.DataFrame(search.cv_results_)[["params", "mean_test_score", "std_test_score"]],
+            "best_estimator": search.best_estimator_,
+        }
+
+    # -------------------------
+    # 4) Tabla resumen (binaria o multiclase -> usa macro avg)
+    # -------------------------
+    OVERSAMPLER_SUFFIX = f" ({sampler_name})"
+
+    def _pick_key(rep, preferred, fallback=None):
+        for k in preferred:
+            if k in rep:
+                return k
+        return fallback
+
+    def construir_tabla_resumen(results_dict):
+        filas = []
+        for name, info in results_dict.items():
+            rep = info.get("classification_report", {})
+            if not rep:
+                continue
+
+            # Claves de clase (excluyendo promedios)
+            cls_keys = [k for k in rep.keys() if k not in ("accuracy", "macro avg", "weighted avg", "micro avg")]
+
+            # Si es binario intenta mapear No/Yes | 0/1 | False/True; si es multiclase, no se usan columnas por-clase
+            if len(cls_keys) >= 2:
+                k_no  = _pick_key(rep, ["No", "NO", "0", "False", "false"], cls_keys[0])
+                k_yes = _pick_key(rep, ["Yes", "YES", "1", "True", "true"],  cls_keys[1])
+                metr_no  = rep.get(k_no, {})
+                metr_yes = rep.get(k_yes, {})
+            else:
+                metr_no, metr_yes = {}, {}
+
+            macro = rep.get("macro avg", {})
+            cv_df = info.get("cv_results", pd.DataFrame())
+            best_cv = cv_df["mean_test_score"].max() if "mean_test_score" in cv_df else np.nan
+
+            filas.append({
+                "Modelo": f"{name}{OVERSAMPLER_SUFFIX}",
+                "Precision (No)":   metr_no.get("precision",  np.nan),
+                "Recall (No)":      metr_no.get("recall",     np.nan),
+                "F1-score (No)":    metr_no.get("f1-score",   np.nan),
+                "Precision (Yes)":  metr_yes.get("precision", np.nan),
+                "Recall (Yes)":     metr_yes.get("recall",    np.nan),
+                "F1-score (Yes)":   metr_yes.get("f1-score",  np.nan),
+                "F1-score (Macro Avg) - Test":  macro.get("f1-score", np.nan),
+                "F1-score (Macro Avg) - Train (CV)": best_cv,
+                "Accuracy": rep.get("accuracy", np.nan),
+            })
+
+        cols = [
+            "Modelo",
+            "Precision (No)", "Recall (No)", "F1-score (No)",
+            "Precision (Yes)", "Recall (Yes)", "F1-score (Yes)",
+            "F1-score (Macro Avg) - Test",
+            "F1-score (Macro Avg) - Train (CV)",
+            "Accuracy",
+        ]
+
+        df_tabla = pd.DataFrame(filas)[cols].sort_values(
+            by="F1-score (Macro Avg) - Test", ascending=False
+        ).reset_index(drop=True)
+        return df_tabla.round(6)
+
+    df_tabla = construir_tabla_resumen(results)
+
+    st.subheader("Tabla resumen de métricas (ordenada por F1-macro Test)")
+    st.dataframe(df_tabla, use_container_width=True)
+
+    # -------------------------
+    # 5) Extras: ver mejor estimador y *oversampling* aplicado
+    # -------------------------
+    with st.expander("🔎 Ver detalles del mejor estimador por modelo"):
+        for name, info in results.items():
+            st.markdown(f"**{name}** – *Best params*: `{info['best_params']}`")
+
+    # -------------------------
+    # 6) (Opcional) Extraer muestras *resampleadas* del mejor pipeline seleccionado
+    # -------------------------
+    st.markdown("**(Opcional)** Visualizar tamaños tras *oversampling* con el mejor **RandomForest** (si fue entrenado)")
+    if "RandomForest" in results:
+        best_rf = results["RandomForest"]["best_estimator"]
+        try:
+            overs = best_rf.named_steps.get("oversampler", None)
+            pre  = best_rf.named_steps.get("preprocessor", None)
+            if overs is not None and pre is not None:
+                X_tr_proc = pre.fit_transform(X_train)
+                X_res, y_res = overs.fit_resample(X_tr_proc, y_train_encoded)
+                unique, counts = np.unique(y_res, return_counts=True)
+                dist = pd.DataFrame({"Clase": unique, "Conteo": counts})
+                dist["Clase"] = dist["Clase"].map(dict(enumerate(le_27.classes_)))
+                st.write("Distribución tras oversampling (RandomForest):")
+                st.dataframe(dist, use_container_width=True)
+        except Exception as e:
+            st.warning(f"No se pudo mostrar la distribución tras oversampling: {e}")
