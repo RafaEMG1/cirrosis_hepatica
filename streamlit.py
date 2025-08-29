@@ -135,10 +135,13 @@ with st.expander("📌 Paso 4: Entrenamiento del modelo"):
     """)
 
 # Paso 5
-with st.expander("📌 Paso 4: Búsqueda de mejores hiperparametros"):
-
+with st.expander("📌 Paso 5: Búsqueda de mejores hiperparametros"):
+    st.write("""
+    - Randomized Search
+    """)
+    
 # Paso 6
-with st.expander("📌 Paso 5: Evaluación"):
+with st.expander("📌 Paso 6: Evaluación"):
     st.write("""
     - Se calcularon métricas como **Accuracy, Precision, Recall y F1-Score**.  
     - También se aplicó validación cruzada para obtener una estimación más robusta.  
@@ -153,7 +156,7 @@ dot.node("B", "Preprocesamiento", shape="box")
 dot.node("C", "Selección de características", shape="box")
 dot.node("D", "Entrenamiento del modelo\n", shape="box")
 dot.node("E", "Búsqueda de mejores hiperparametros", shape="box")
-dot.node("F", "Evaluación del modelo\n(Accuracy)", shape="box")
+dot.node("F", "Evaluación del modelo\n(**Accuracy**)", shape="box")
 
 dot.edges(["AB", "BC", "CD", "DE"])
 
