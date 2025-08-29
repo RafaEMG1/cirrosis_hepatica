@@ -1149,7 +1149,7 @@ def sec_tabla_comparativa_metricas():
     # Mostrar en Streamlit
     st.dataframe(df, use_container_width=True)
 
-
+sec_tabla_comparativa_metricas()
 
 
 
