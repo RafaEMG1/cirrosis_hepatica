@@ -627,7 +627,6 @@ st.markdown("""## 1.2. Selección de carácteristicas numéricas""")
 # =========================
 # 1.2. Selección de características numéricas
 # =========================
-st.markdown("## 1.2. Selección de características numéricas")
 
 # --- Detectar y preparar numéricas ---
 df_num_full = df.select_dtypes(include=["number"]).copy()
