@@ -127,11 +127,11 @@ with st.expander("📌 Paso 4: Entrenamiento del modelo"):
     - Se probaron algoritmos como:
         - **Decission tree**
         - **Regresión Logística**
-        -**Random forest** 
-        -**KNN (K-Nearest Neighbors)** 
-        -**SVM (Support Vector Machine)** 
-        -**HistGradientBoosting**
-        -**ExtraTrees**
+        - **Random forest** 
+        - **KNN (K-Nearest Neighbors)** 
+        - **SVM (Support Vector Machine)** 
+        - **HistGradientBoosting**
+        - **ExtraTrees**
     """)
 
 # Paso 5
