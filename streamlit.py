@@ -763,7 +763,7 @@ else:
 
 
 # __________________________________________________________________________________________________
-st.markdown("## 1.3. Unión de variables categóricas y numéricas (SECCIÓN AISLADA)")
+st.markdown("## 1.3. Unión de variables categóricas y numéricas")
 
 # ====== CONFIG LOCAL DE LA SECCIÓN (no global) ======
 s13_ohe_keep = [
@@ -871,7 +871,7 @@ with c2:
     )
 
 # __________________________________________________________________________________________________
-st.markdown("## 1.4. Modelado (basado en 1.3 y aislado)")
+st.markdown("## 1.4. Modelado ")
 
 # ===== Helpers locales (no globales) =====
 def s14_make_safe_cv(y_like, max_splits=5, seed=42):
