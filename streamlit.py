@@ -127,9 +127,9 @@ with st.expander("📌 Paso 4: Entrenamiento del modelo"):
     - Se probaron algoritmos como:
         - **Decission tree**
         - **Regresión Logística**
-        - **Random forest** 
-        - **KNN (K-Nearest Neighbors)** 
-        - **SVM (Support Vector Machine)** 
+        - **Random forest**
+        - **KNN (K-Nearest Neighbors)**
+        - **SVM (Support Vector Machine)**
         - **HistGradientBoosting**
         - **ExtraTrees**
     """)
@@ -143,7 +143,7 @@ with st.expander("📌 Paso 5: Búsqueda de mejores hiperparametros"):
 # Paso 6
 with st.expander("📌 Paso 6: Evaluación"):
     st.write("""
-    - Se calcularon métricas como **Accuracy, Precision, Recall y F1-Score**.  
+    - Se calcularon métricas como **Accuracy**, Precision, Recall y F1-Score.  
     - También se aplicó validación cruzada para obtener una estimación más robusta.  
     """)
 
@@ -158,7 +158,7 @@ dot.node("D", "Entrenamiento del modelo\n", shape="box")
 dot.node("E", "Búsqueda de mejores hiperparametros", shape="box")
 dot.node("F", "Evaluación del modelo\n(**Accuracy**)", shape="box")
 
-dot.edges(["AB", "BC", "CD", "DE"])
+dot.edges(["AB", "BC", "CD", "DE","EF"])
 
 st.graphviz_chart(dot)
 
