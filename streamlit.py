@@ -85,7 +85,7 @@ warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Cirrosis Hepatica Streamlit App", layout="wide")
 st.title("Clasificación de los estadios de la cirrosis hepática con métodos de Machine Learning")
 
- st.markdown("## 👥 Equipo & 📊 Fuente de datos")
+st.markdown("## 👥 Equipo & 📊 Fuente de datos")
 
     # ---- Equipo (tarjetas en columnas) ----
     cols = st.columns(3)
