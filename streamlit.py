@@ -88,7 +88,7 @@ st.title("Clasificación de los estadios de la cirrosis hepática con métodos d
 st.markdown("## 👥 Equipo & 📊 Fuente de datos")
 
     # ---- Equipo (tarjetas en columnas) ----
-    cols = st.columns(3)
+cols = st.columns(3)
     integrantes = [
         ("Diego Fernando Naranjo Polanía", "dnaranjop@unbosque.edu.co"),
         ("Johan Steven Mahecha Cobos", "jsmahecha@unbosque.edu.co"),
@@ -108,8 +108,8 @@ st.markdown("## 👥 Equipo & 📊 Fuente de datos")
             )
 
     # ---- Fuente de datos ----
-    fuente_url = "https://www.kaggle.com/datasets/aadarshvelu/liver-cirrhosis-stage-classification"
-    st.markdown(
+fuente_url = "https://www.kaggle.com/datasets/aadarshvelu/liver-cirrhosis-stage-classification"
+st.markdown(
         f"""
         ### 📦 Origen de la base de datos
         Dataset: [Liver Cirrhosis Stage Classification]({fuente_url})
