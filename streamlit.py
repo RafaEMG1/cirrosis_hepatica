@@ -1042,7 +1042,7 @@ if s2_cat_sel:
         # Fit y transform con prince.MCA
         mca_pr = prince.MCA(
             n_components=min(6, X_train_cat_dum.shape[1]),
-            benzecri=True, random_state=42
+            random_state=42
         ).fit(X_train_cat_dum)
         coords = mca_pr.transform(X_train_cat_dum)
 
@@ -1202,7 +1202,7 @@ X_train_dum = pd.get_dummies(X_cat_train, drop_first=False)
 X_test_dum  = pd.get_dummies(X_cat_test,  drop_first=False)
 X_test_dum  = X_test_dum.reindex(columns=X_train_dum.columns, fill_value=0)
 
-mca2 = prince.MCA(n_components=min(6, X_train_dum.shape[1]), benzecri=True, random_state=42).fit(X_train_dum)
+mca2 = prince.MCA(n_components=min(6, X_train_dum.shape[1]), random_state=42).fit(X_train_dum)
 X_train_mca = mca2.transform(X_train_dum)
 X_test_mca  = mca2.transform(X_test_dum)
 
