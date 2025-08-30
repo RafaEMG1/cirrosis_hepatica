@@ -1806,13 +1806,18 @@ st.dataframe(df_resultados.style.format(precision=4), use_container_width=True)
 
 # Párrafo de análisis
 analisis = """
-*Análisis:*  
-Tras evaluar diversos modelos de clasificación con sus respectivos hiperparámetros optimizados, se concluye que los algoritmos con mejor desempeño en términos de accuracy son *Random Forest (0.9128)* y *KNN (0.9110). En contraste, el modelo de **regresión logística (Softmax: 0.5756)* muestra el rendimiento más bajo, lo que indica que no es el más adecuado para la tarea de clasificación del estadío de la cirrosis. Por otro lado, los modelos *HistGradientBoosting* y *ExtraTrees* presentan resultados similares, siendo el primero ligeramente superior (accuracy media de 0.8919 frente a 0.8916); ambos superan a *Decision Tree* y *SVM, aunque no alcanzan el rendimiento de **Random Forest* ni de *KNN. Con base en estos resultados, se determina que **Random Forest* es el modelo más adecuado para utilizar con el conjunto de datos generado mediante *PCA* y *MCA*.
+**Análisis**  
+Tras evaluar diversos modelos de clasificación con sus respectivos hiperparámetros optimizados, se concluye que los algoritmos con mejor desempeño en términos de *accuracy* son *Random Forest (0.9128)* y *KNN (0.9110)*.
+
+En contraste, el modelo de *Regresión Logística (Softmax: 0.5756)* muestra el rendimiento más bajo, lo que indica que no es el más adecuado para la tarea de clasificación del estadío de la cirrosis.
+
+Por otro lado, los modelos *HistGradientBoosting* y *ExtraTrees* presentan resultados similares, siendo el primero ligeramente superior (accuracy media de 0.8919 frente a 0.8916); ambos superan a *Decision Tree* y *SVM*, aunque no alcanzan el rendimiento de *Random Forest* ni de *KNN*.
+
+Con base en estos resultados, se determina que **Random Forest** es el modelo más adecuado para utilizar con el conjunto de datos generado mediante **PCA** y **MCA**.
 """
 
 # Mostrar el análisis en Streamlit
 st.markdown(analisis)
-
 
 # === FIN SECCIÓN 2 ===
 
