@@ -1991,6 +1991,6 @@ def conclusion_final():
 """)
 
 # Llama a la sección donde corresponda en tu app:
-# conclusion_final()
+conclusion_final()
 
 
