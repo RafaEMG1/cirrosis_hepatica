@@ -877,25 +877,18 @@ else:
 st.subheader("Análisis")
 
 st.markdown("""
-- Los dos **selectores de características** (*f_classif* y *mutual_info_classif*) presentan **diferentes scores** y seleccionan distintas variables, aunque coinciden en las características **N_Dias, Colesterol,  y triglicéridos**.  
+- Los dos selectores de características f_classif y mutual info classif presentan diferentes scores y seleccionan distintas variables, aunque coinciden en las características N_Dias, Colesterol, y triglicéridos. 
+- Con mutual_info_classif la mayoría de las variables muestran un score más representativo, destacando las características N_Dias, Edad y Plaquetas., 
+- Con f_classif las características más representativas son Prothrombin, N_Dias y Albumin.
+Esta diferencia no permitió definir un conjunto único de características para trabajar de forma confiable. Por ello, se decidió modelar y observar el comportamiento con las diferentes variables seleccionadas.
+Los diferentes modelos no mejoraron el accuracy respecto al modelo principal con todas las variables.
 
-- Con **mutual_info_classif** la mayoría de las variables muestran un **score más representativo**, destacando las características **N_Dias, Edad y Triglicéridos**.  
-  Con **f_classif** destacan las características **N_Dias, Colesterol,  y plaquetas** como más relevantes.  
-
-- Esta diferencia **no permite definir un conjunto único** de características para trabajar de forma confiable.  
-  Por ello, se decide **modelar y observar el comportamiento** con las diferentes variables seleccionadas.
+- En la regresión logística softmax, con 7 variables se obtuvo un accuracy similar al del modelo completo, sin embargo, el modelo no presenta un buen accuracy.
+- Los algoritmos utilizados no permitieron reducir de forma efectiva la cantidad de variables sin afectar el desempeño.
+- Con solo variables numéricas, el modelo SVC alcanzó el mejor accuracy (≈ 0.7557) sin reducir variables.
+Se espera que este resultado mejore al integrar las variables categóricas.
 """)
 
-st.markdown("""
-- Los diferentes modelos **no mejoraron el *accuracy*** respecto al modelo principal con todas las variables al aplicar **técnicas de selección de características**.  
-
-- En la **regresión logística softmax**, con **7 variables** se obtuvo un *accuracy* similar al del modelo completo.  
-
-- Los algoritmos utilizados **no permitieron reducir de forma efectiva** la cantidad de variables sin afectar el desempeño.  
-
-- Con **solo variables numéricas**, el modelo **SVC** alcanzó el mejor *accuracy* (≈ **0.7557**) **sin reducir variables**.  
-  Se espera que este resultado **mejore al integrar las variables categóricas**.
-""")
 
 
 
@@ -1963,3 +1956,9 @@ df_resultados = pd.DataFrame(resultados)
 # Mostrar tabla en formato científico
 st.dataframe(df_resultados.style.format(precision=3))
 
+
+st.subheader("Análisis RFECV")
+
+st.markdown("""
+Se aplicó el método RFE (eliminación recursiva de características) con validación cruzada (CV) para la selección de variables, entrenando cuatro modelos: árboles de decisión, random forest, regresión logística y extra trees. Los resultados mostraron un buen desempeño en los modelos Extra Trees (0.948), Random Forest (0.946) y Decision Tree (0.922). Durante el proceso, cada modelo fue reduciendo progresivamente las variables hasta conservar 7, 6 y 3 características respectivamente, siendo este el enfoque que permitió la mayor reducción de características sin comprometer el rendimiento del modelo.
+""")
