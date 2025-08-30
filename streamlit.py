@@ -1977,3 +1977,20 @@ Finalmente, con la eliminación recursiva de características (RFECV) se consigu
 """)
 
 
+def conclusion_final():
+    st.subheader("🏁 Conclusión Final")
+    st.markdown("""
+**HistGradientBoosting** se posiciona como el **mejor modelo** para la clasificación de etapas de cirrosis, al lograr el **mayor accuracy** tanto en validación cruzada (~96 %) como en prueba (~95–96 %), con una **brecha mínima** entre ambos que sugiere **excelente generalización**; los **ensambles** basados en árboles (**Random Forest** y **ExtraTrees**) mantienen desempeños muy altos (>93–94 %) y métricas por clase (precisión, recall y F1) **equilibradas**, mientras que **KNN** ofrece un rendimiento sólido (~92–93 %) pero inferior a los ensambles, y **Logistic Regression** queda **rezagado** (<60 %), evidenciando que las fronteras del problema no son lineales. En conjunto, los resultados muestran que **los modelos de boosting** capturan mejor la estructura del dato, maximizan la exactitud sin sacrificar el balance por clase y son, por tanto, la **opción más robusta y confiable** para su despliegue en este caso de uso.
+""")
+
+    with st.expander("➡️ Recomendaciones inmediatas"):
+        st.markdown("""
+- **Seleccionar HGB como modelo final** y conservar **Random Forest** como baseline de respaldo.
+- **Verificar estabilidad** con una *StratifiedKFold* adicional y curva de aprendizaje para descartar sobreajuste sutil.
+- **Aumentar interpretabilidad** (importancias/SHAP) y evaluar **calibración** de probabilidades si habrá umbrales operativos.
+""")
+
+# Llama a la sección donde corresponda en tu app:
+# conclusion_final()
+
+
