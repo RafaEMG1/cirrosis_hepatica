@@ -1294,12 +1294,7 @@ def sec_tabla_completa():
 
     st.dataframe(df_view, use_container_width=True)
 
-# Llamar a la sección donde corresponda en tu app:
-
-
-
-
-
+sec_tabla_completa()
 
 
 
