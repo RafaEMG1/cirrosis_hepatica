@@ -294,11 +294,11 @@ with st.container():
         orden_alfabetico = st.checkbox("Ordenar alfabéticamente (solo tabla)", value=False, key="cat_orden_local")
 
 # =========================
-# Preparar datos (siempre incluye NaN)
+# Preparar datos 
 # =========================
 serie = df[var].copy()
 
-vc = serie.value_counts(dropna=True)  # Se mantienen los NaN para contarlos
+vc = serie.value_counts(dropna=True)
 
 # Etiqueta amigable para NaN
 labels = vc.index.to_list()
@@ -372,6 +372,9 @@ with c2:
 st.caption("Consejo: usa *Top N* para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
 
 #####--------------------------------------------------------------------------------------#########
+
+
+
 
 # =========================
 # Análisis de variables numéricas
@@ -505,7 +508,58 @@ with sns.plotting_context("notebook", font_scale=0.6):
     fig.tight_layout(pad=0.5)
     st.pyplot(fig, use_container_width=True)  # Se ajusta al ancho del contenedor
 
+
+# ============================
+# Texto para análisis en Streamlit
+# ============================
+
+st.header("1. Distribuciones Simétricas")
+st.markdown("""
+Las variables **Age**, **Albumin**, **Platelets** y **Prothrombin** presentan distribuciones cercanas a la forma de campana, 
+lo que indica una dispersión relativamente equilibrada alrededor de la media.  
+Aunque existe una ligera asimetría, la mayoría de los valores se concentran en torno a la mediana y la media, 
+sin presencia marcada de colas largas.
+""")
+
+st.header("2. Distribuciones con Sesgo a la Derecha (Asimetría Positiva)")
+st.markdown("""
+Las variables **Bilirubin**, **Cholesterol**, **Copper**, **Alk_Phos**, **SGOT**, **Triglycerides** y **N_Days** muestran 
+**asimetría positiva**, es decir, presentan una concentración de valores en la parte baja del rango y colas largas hacia la derecha.  
+Esto sugiere alta dispersión y la posible presencia de valores extremos (outliers), particularmente en variables bioquímicas.
+
+- **Bilirubin**: valores entre 0,3 y 28 mg/dL, media de 3,40 mg/dL.  
+- **Cholesterol**: promedio de 372 mg/dL con máxima dispersión (DE ≈ 193,7), hasta 1775 mg/dL.  
+- **Copper** y **Alk_Phos**: alta variabilidad, con Alk_Phos alcanzando 13862,4 U/L.  
+- **SGOT**: valores entre 26,35 y 457,25 U/L, media de 123,17 U/L.  
+- **Triglycerides**: promedio 123,82 mg/dL, con extremos hasta 598 mg/dL.  
+""")
+
+st.header("3. Posibles Outliers Extremos")
+st.markdown("""
+Se identifican posibles valores atípicos en:
+
+- **Bilirubin**: > 20 mg/dL  
+- **Cholesterol**: > 1500 mg/dL  
+- **Alk_Phos**: > 10000 U/L  
+- **Copper**: > 500 µg/dL  
+- **SGOT**: > 400 U/L  
+
+Estos casos deben evaluarse para decidir si requieren tratamiento previo al modelado estadístico.
+""")
+
+st.header("4. Resumen de Variables Estables")
+st.markdown("""
+- **Albumin**: valores entre 1,96 y 4,64 g/dL, mediana 3,51 g/dL, baja dispersión.  
+- **Platelets**: promedio 256 × 10³/µL, rango 62 a 721 × 10³/µL.  
+- **Prothrombin**: media de 10,73 s, variación reducida (DE ≈ 0,90 s).  
+
+En conjunto, estas variables muestran un comportamiento más estable y menos afectado por valores extremos.
+""")
+
+
 #________________________________________________________________________________________________________________________________________________________________
+
+
 
 
 # ________________________________________________________________________________________________________________________________________________________________
