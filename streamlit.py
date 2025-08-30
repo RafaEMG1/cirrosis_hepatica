@@ -1233,7 +1233,8 @@ try:
 
 except Exception as e:
     st.error("⏰ Tiempo de procesamiento excedido o error en la ejecución. Por favor intente con otro modelo.")
-    st.write(f"Detalles técnicos: {str(e)}")
+    with st.expander("Detalles técnicos del error"):
+        st.code(str(e))
 
 def sec_tabla_completa():
     st.markdown("## 📊 Comparativa de Modelos con Métricas por Clase")
