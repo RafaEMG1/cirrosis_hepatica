@@ -874,7 +874,7 @@ else:
             st.write(f"**Mejor Accuracy CV:** {search.best_score_:.4f}")
 
 
-st.subheader("Conclusiones Parciales")
+st.subheader(""Análisis")
 
 st.markdown("""
 - Los dos **selectores de características** (*f_classif* y *mutual_info_classif*) presentan **diferentes scores** y seleccionan distintas variables, aunque coinciden en las características **N_Dias, Colesterol,  y triglicéridos**.  
@@ -1298,9 +1298,9 @@ sec_tabla_completa()
 
 
 
-st.subheader("📌 Conclusiones Parciales")
+st.subheader("Análisis")
 st.markdown("""
-Con base en los resultados, se observa que los modelos simples como **Logistic Regression** quedan muy rezagados con un **accuracy** inferior al 60 %, mientras que **KNN** y **Decision Tree** logran entre el 90 % y 93 %. Los modelos de ensamble como **Random Forest** y **ExtraTrees** superan el 94 %, mostrando mejoras significativas frente a los modelos básicos. Sin embargo, el mejor desempeño lo alcanza **HistGradientBoosting**, con un **accuracy** cercano al 96 % en validación cruzada y prueba, además de métricas por clase (precisión, recall y F1-score) muy equilibradas, lo que evidencia **excelente capacidad de generalización** y lo posiciona como la alternativa más robusta y confiable para la clasificación multiclase en este problema.
+Con base en los resultados, se observa que los modelos simples como **Logistic Regression** quedan muy rezagados con un **accuracy** inferior al 60 %, mientras que **KNN** y **Decision Tree** logran entre el 90 % y 93 %. Los modelos de ensamble como **Random Forest** y **ExtraTrees** superan el 94 %, mostrando mejoras significativas frente a los modelos básicos. Sin embargo, el mejor desempeño lo alcanza **HistGradientBoosting**, con un **accuracy** cercano al 96 % en validación cruzada y prueba, además de métricas por clase (precisión, recall y F1-score) muy equilibradas, lo que evidencia **muy buena capacidad de generalización** y lo posiciona como la mejor alternativa para la clasificación multiclase en este problema.
 """)
 
 
