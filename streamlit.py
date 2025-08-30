@@ -83,6 +83,8 @@ st.write("[Rafael Eduardo Montenegro González](mailto:rmontenegro@unbosque.edu.
 
 st.subheader("Origen de la base de datos")
 st.write("[Kaggle – Liver Cirrhosis Stage Classification](https://www.kaggle.com/datasets/aadarshvelu/liver-cirrhosis-stage-classification)")
+st.subheader("Colab:")
+st.write("[Colab del proyecto](https://colab.research.google.com/drive/1-HsrnyL8eBXUKPOskzmHl3-udO2dWQc7?usp=sharing)")
 
 
 # ----------------------------
@@ -1960,7 +1962,9 @@ st.dataframe(df_resultados.style.format(precision=3))
 st.subheader("Análisis RFECV")
 
 st.markdown("""
-Se aplicó el método RFE (eliminación recursiva de características) con validación cruzada (CV) para la selección de variables, entrenando cuatro modelos: árboles de decisión, random forest, regresión logística y extra trees. Los resultados mostraron un buen desempeño en los modelos Extra Trees (0.948), Random Forest (0.946) y Decision Tree (0.922). Durante el proceso, cada modelo fue reduciendo progresivamente las variables hasta conservar 7, 6 y 3 características respectivamente, siendo este el enfoque que permitió la mayor reducción de características sin comprometer el rendimiento del modelo.
+Se aplicó el método RFE (eliminación recursiva de características) con validación cruzada (CV) para la selección de variables, entrenando cuatro modelos: árboles de decisión, random forest, regresión logística 
+y extra trees. Los resultados mostraron un buen desempeño en los modelos Extra Trees (0.948), Random Forest (0.946) y Decision Tree (0.922). Durante el proceso, cada modelo fue reduciendo progresivamente las 
+variables hasta conservar 7, 6 y 3 características respectivamente, siendo este el enfoque que permitió la mayor reducción de características.
 """)
 
 
