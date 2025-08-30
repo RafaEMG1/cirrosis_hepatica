@@ -874,7 +874,7 @@ else:
             st.write(f"**Mejor Accuracy CV:** {search.best_score_:.4f}")
 
 
-st.subheader(""Análisis")
+st.subheader("Análisis")
 
 st.markdown("""
 - Los dos **selectores de características** (*f_classif* y *mutual_info_classif*) presentan **diferentes scores** y seleccionan distintas variables, aunque coinciden en las características **N_Dias, Colesterol,  y triglicéridos**.  
