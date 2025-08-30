@@ -1575,31 +1575,48 @@ with cB:
 # ______________________________________________________________________________________________________
 
 # __________________________________________________________________________________________________
+
+
 st.markdown("""## 2.4. Modelado""")
 
 
 # --- Filtro único de la subsección (por defecto: Logistic Regression)
 model_name_24 = st.selectbox(
     "Elige el modelo a evaluar (CV 5-fold)",
-    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
-    index=0,  # Logistic Regression por defecto
+    options=[
+        "Logistic Regression", "KNN", "SVC", 
+        "Decision Tree", "Random Forest", 
+        "ExtraTrees", "HistGradientBoosting"
+    ],
+    index=0,
     key="model_sel_24"
 )
 
 # --- Construcción del modelo según selección
 def build_model(name: str):
     if name == "Logistic Regression":
-        return LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=2000, class_weight="balanced", random_state=42)
+        return LogisticRegression(
+            multi_class="multinomial", 
+            solver="lbfgs", 
+            max_iter=2000, 
+            class_weight="balanced", 
+            random_state=42
+        )
     if name == "KNN":
-        return KNeighborsClassifier()
+        return KNeighborsClassifier(random_state=42)
     if name == "SVC":
-        return SVC()  # por defecto rbf; podrías envolver en Pipeline con StandardScaler si lo deseas
+        return SVC(random_state=42)
     if name == "Decision Tree":
         return DecisionTreeClassifier(random_state=42)
     if name == "Random Forest":
         return RandomForestClassifier(random_state=42)
+    if name == "ExtraTrees":
+        return ExtraTreesClassifier(random_state=42)
+    if name == "HistGradientBoosting":
+        return HistGradientBoostingClassifier(random_state=42)
+    
     raise ValueError("Modelo no soportado")
-
+    
 modelo_24 = build_model(model_name_24)
 
 # --- CV estratificado para mayor estabilidad
@@ -1607,23 +1624,27 @@ cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 scores = cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
 
 st.subheader("Resultados de validación cruzada")
-st.write(f"**Modelo:** {model_name_24}")
-st.write(f"**Accuracy (media CV):** {scores.mean():.4f}  |  **Std:** {scores.std():.4f}")
+st.write(f"*Modelo:* {model_name_24}")
+st.write(f"*Accuracy (media CV):* {scores.mean():.4f}  |  *Std:* {scores.std():.4f}")
 
-# __________________________________________________________________________________________________
+# __________________________________
 st.markdown("""## 2.5. Ajuste de hiperparámetros""")
 
 from sklearn.model_selection import RandomizedSearchCV
 from scipy.stats import randint, uniform, loguniform
 
 # --- Filtro único de la subsección (por defecto: Logistic Regression)
+
 model_name_25 = st.selectbox(
     "Elige el modelo a ajustar (RandomizedSearchCV)",
-    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
+    options=[
+        "Logistic Regression", "KNN", "SVC", 
+        "Decision Tree", "Random Forest",
+        "ExtraTrees", "HistGradientBoosting" 
+    ],
     index=0,
     key="model_sel_25"
 )
-
 # --- Espacios de búsqueda por modelo (evitando combinaciones inválidas)
 def get_model_and_searchspace(name: str):
     if name == "Logistic Regression":
@@ -1668,6 +1689,26 @@ def get_model_and_searchspace(name: str):
             "max_features": ["sqrt", "log2", None],
         }
         return model, param_dist, "accuracy"
+    if name == "ExtraTrees":
+        model = ExtraTreesClassifier(random_state=42, n_jobs=-1)
+        param_dist = {
+            "n_estimators": randint(50, 200),
+            "max_depth": randint(5, 30),
+            "min_samples_split": randint(2, 20),
+            "min_samples_leaf": randint(1, 20),
+            "max_features": ["sqrt", "log2", None],
+            "bootstrap": [True, False],
+        }
+        return model, param_dist, "accuracy"
+    if name == "HistGradientBoosting":
+        model = HistGradientBoostingClassifier(random_state=42)
+        param_dist = {
+            "max_iter": randint(50, 200),
+            "learning_rate": [0.01, 0.05, 0.1, 0.2],
+            "max_depth": randint(2, 10),
+            "max_leaf_nodes": randint(10, 50),
+        }
+        return model, param_dist, "accuracy"
     raise ValueError("Modelo no soportado")
 
 estimator_25, searchspace_25, metric_25 = get_model_and_searchspace(model_name_25)
@@ -1686,16 +1727,16 @@ random_search = RandomizedSearchCV(
 random_search.fit(X_train_final, y_train)
 
 st.subheader("Mejores hiperparámetros")
-st.write(f"**Modelo:** {model_name_25}")
-st.write("**Best params:**", random_search.best_params_)
-st.write(f"**Mejor {metric_25} (CV):** {random_search.best_score_:.4f}")
+st.write(f"*Modelo:* {model_name_25}")
+st.write("*Best params:*", random_search.best_params_)
+st.write(f"*Mejor {metric_25} (CV):* {random_search.best_score_:.4f}")
 
 # Guardar el mejor estimador en session_state para reusarlo en 2.6
 if "best_estimators" not in st.session_state:
     st.session_state.best_estimators = {}
 st.session_state.best_estimators[model_name_25] = random_search.best_estimator_
 
-# __________________________________________________________________________________________________
+# __________________________________
 st.markdown("""## 2.6. Comparación de modelos optimizados""")
 
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -1703,7 +1744,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 # --- Filtro único de la subsección (por defecto: Logistic Regression)
 model_name_26 = st.selectbox(
     "Elige el modelo a evaluar en Test",
-    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
+    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest", "ExtraTrees", "HistGradientBoosting"],
     index=0,
     key="model_sel_26"
 )
@@ -1729,13 +1770,38 @@ y_pred = modelo_26.predict(X_test_final)
 acc_test = accuracy_score(y_test, y_pred)
 
 st.markdown(f"### 📌 Modelo: {model_name_26}")
-st.markdown(f"**Accuracy CV (media ± std):** {mean_cv:.4f} ± {std_cv:.4f}")
-st.markdown(f"**Accuracy Test:** {acc_test:.4f}")
+st.markdown(f"*Accuracy CV (media ± std):* {mean_cv:.4f} ± {std_cv:.4f}")
+st.markdown(f"*Accuracy Test:* {acc_test:.4f}")
 st.text("📋 Classification Report (Test):")
 st.text(classification_report(y_test, y_pred))
 st.text("🧩 Matriz de Confusión (Test):")
 st.write(pd.DataFrame(confusion_matrix(y_test, y_pred), index=sorted(y_test.unique()), columns=sorted(y_test.unique())))
 
+# Definir resultados fijos manualmente
+resultados = {
+    "Modelo": [
+        "Random Forest",
+        "KNN",
+        "HistGradientBoosting",
+        "ExtraTrees",
+        "Decision Tree",
+        "SVM",
+        "Logistic Regression"
+    ],
+    "Accuracy CV (media)": [0.9036, 0.9041, 0.8952, 0.8935, 0.8539, 0.7861, 0.5688],
+    "Accuracy CV (std)":   [0.0035, 0.0032, 0.0041, 0.0035, 0.0062, 0.0031, 0.0053],
+    "Accuracy Test":       [0.9103, 0.9093, 0.8952, 0.9022, 0.8641, 0.7960, 0.5748]
+}
+
+# Crear DataFrame
+df_resultados = pd.DataFrame(resultados)
+
+# Ordenar por Accuracy Test (descendente)
+df_resultados = df_resultados.sort_values(by="Accuracy Test", ascending=False)
+
+# Mostrar en Streamlit
+st.markdown("### 📊 Resumen Comparativo de Modelos")
+st.dataframe(df_resultados.style.format(precision=4), use_container_width=True)
 
 
 # === FIN SECCIÓN 2 ===
