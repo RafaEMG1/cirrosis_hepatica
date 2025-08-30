@@ -720,6 +720,21 @@ else:
             run_selector(mutual_info_classif, "SelectKBest Información Mutua", "mi_11")
 
 
+st.subheader("Conclusión Parcial: Chi² e Información Mutua")
+st.markdown("""
+Tras aplicar las técnicas de **Chi²** e **Información Mutua**, ambos métodos convergieron en el mismo conjunto de **9 variables categóricas**,  
+con evidencia de **aporte predictivo** y coherencia.  
+
+Dado que son variables nominales, la **codificación One-Hot-Encoder (OHE)** es la alternativa recomendada, pasando de **7 variables iniciales a 16 codificadas**.
+
+Al coincidir los dos criterios de selección, los modelos se ejecutaron una sola vez sobre este conjunto.  
+En los experimentos con solo variables categóricas:  
+- **Random Forest** y **Árboles de Decisión** lograron la mejor *accuracy* ≈ **51,62 %**  
+
+Este resultado se interpreta como una **cota inferior del desempeño**, ya que se espera una mejora al **integrar las variables numéricas** en la sección 2.3.
+""")
+
+
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 1.2. Selección de carácteristicas numéricas""")
 
@@ -858,6 +873,29 @@ else:
             st.write(f"**Mejor k:** {search.best_params_['kbest__k']}")
             st.write(f"**Mejor Accuracy CV:** {search.best_score_:.4f}")
 
+
+st.subheader("Conclusiones Parciales")
+
+st.markdown("""
+- Los dos **selectores de características** (*f_classif* y *mutual_info_classif*) presentan **diferentes scores** y seleccionan distintas variables, aunque coinciden en las características **0, 4 y 9**.  
+
+- Con **mutual_info_classif** la mayoría de las variables muestran un **score más representativo**, destacando las características **0, 1 y 9**.  
+  Con **f_classif** destacan las características **0, 4 y 10** como más relevantes.  
+
+- Esta diferencia **no permite definir un conjunto único** de características para trabajar de forma confiable.  
+  Por ello, se decide **modelar y observar el comportamiento** con las diferentes variables seleccionadas.
+""")
+
+st.markdown("""
+- Los diferentes modelos **no mejoraron el *accuracy*** respecto al modelo principal con todas las variables al aplicar **técnicas de selección de características**.  
+
+- En la **regresión logística softmax**, con **7 variables** se obtuvo un *accuracy* similar al del modelo completo.  
+
+- Los algoritmos utilizados **no permitieron reducir de forma efectiva** la cantidad de variables sin afectar el desempeño.  
+
+- Con **solo variables numéricas**, el modelo **SVC** alcanzó el mejor *accuracy* (≈ **0.7557**) **sin reducir variables**.  
+  Se espera que este resultado **mejore al integrar las variables categóricas** en la sección 2.3.
+""")
 
 
 
