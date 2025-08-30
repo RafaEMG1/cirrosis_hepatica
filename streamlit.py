@@ -1236,27 +1236,37 @@ st.text("📋 Classification Report:")
 st.text(classification_report(y_test_15, y_pred_15))
 
 
-def sec_tabla_comparativa_metricas():
-    st.markdown("## 📊 Comparativa de modelos con métricas por clase")
+def sec_tabla_completa():
+    st.markdown("## 📊 Comparativa de Modelos con Métricas por Clase")
 
-    # Datos obtenidos de las capturas
+    # ======== Datos de todos los modelos ========
     data = [
-        # Modelo, Accuracy Test, Clases (Precision, Recall, F1)
-        ("Logistic Regression", 0.5770,
-         [(0.57, 0.60, 0.58), (0.51, 0.46, 0.48), (0.65, 0.67, 0.66)]),
-        ("KNN", 0.9265,
-         [(0.92, 0.92, 0.92), (0.91, 0.92, 0.91), (0.95, 0.94, 0.95)]),
-        ("Decision Tree", 0.9070,
-         [(0.90, 0.90, 0.90), (0.90, 0.90, 0.90), (0.93, 0.92, 0.92)]),
-        ("Random Forest", 0.9451,
-         [(0.95, 0.94, 0.94), (0.93, 0.94, 0.93), (0.96, 0.96, 0.96)]),
-        ("ExtraTrees", 0.9356,
-         [(0.93, 0.93, 0.93), (0.92, 0.92, 0.92), (0.96, 0.95, 0.95)]),
+        ("Logistic Regression", 0.5866, 0.5770,
+         [(0.57, 0.60, 0.58), (0.51, 0.46, 0.48), (0.65, 0.67, 0.66)],
+         (0.58, 0.58, 0.58)),
+        ("KNN", 0.9315, 0.9265,
+         [(0.92, 0.92, 0.92), (0.91, 0.92, 0.91), (0.95, 0.94, 0.95)],
+         (0.93, 0.93, 0.93)),
+        ("Decision Tree", 0.9071, 0.9070,
+         [(0.90, 0.90, 0.90), (0.90, 0.90, 0.90), (0.93, 0.92, 0.92)],
+         (0.91, 0.91, 0.91)),
+        ("Random Forest", 0.9475, 0.9451,
+         [(0.95, 0.94, 0.94), (0.93, 0.94, 0.93), (0.96, 0.96, 0.96)],
+         (0.95, 0.95, 0.95)),
+        ("ExtraTrees (CV)", 0.9409, 0.9356,
+         [(0.93, 0.93, 0.93), (0.92, 0.92, 0.92), (0.96, 0.95, 0.95)],
+         (0.94, 0.94, 0.94)),
+        ("ExtraTrees (RandSearch)", 0.9310, 0.9273,
+         [(0.93, 0.92, 0.92), (0.90, 0.92, 0.91), (0.95, 0.94, 0.95)],
+         (0.93, 0.93, 0.93)),
+        ("HistGradientBoosting", 0.9611, 0.9582,
+         [(0.96, 0.95, 0.95), (0.95, 0.95, 0.95), (0.97, 0.97, 0.97)],
+         (0.96, 0.96, 0.96)),
     ]
 
-    # Expandir datos a filas
+    # ======== Expandir a filas ========
     rows = []
-    for modelo, acc, clases in data:
+    for modelo, acc_cv, acc_test, clases, macro in data:
         for i, (p, r, f) in enumerate(clases, start=1):
             rows.append({
                 "Modelo": modelo,
@@ -1264,16 +1274,27 @@ def sec_tabla_comparativa_metricas():
                 "Precision": p,
                 "Recall": r,
                 "F1-score": f,
-                "Accuracy Test": acc if i == 1 else np.nan  # solo mostrar una vez
+                "Macro Avg Precision": macro[0],
+                "Macro Avg Recall": macro[1],
+                "Macro Avg F1": macro[2],
+                "Accuracy CV": acc_cv if i == 1 else np.nan,
+                "Accuracy Test": acc_test if i == 1 else np.nan
             })
 
     df = pd.DataFrame(rows)
 
-    # Mostrar en Streamlit
-    st.dataframe(df, use_container_width=True)
+    # ======== Filtros y visualización ========
+    modelos = ["Todos"] + [m for m, *_ in data]
+    sel_modelo = st.selectbox("Filtrar por modelo:", options=modelos, index=0)
 
-sec_tabla_comparativa_metricas()
+    if sel_modelo != "Todos":
+        df_view = df[df["Modelo"] == sel_modelo].reset_index(drop=True)
+    else:
+        df_view = df
 
+    st.dataframe(df_view, use_container_width=True)
+
+# Llamar a la sección donde corresponda en tu app:
 
 
 
