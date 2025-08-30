@@ -877,10 +877,10 @@ else:
 st.subheader("Conclusiones Parciales")
 
 st.markdown("""
-- Los dos **selectores de características** (*f_classif* y *mutual_info_classif*) presentan **diferentes scores** y seleccionan distintas variables, aunque coinciden en las características **0, 4 y 9**.  
+- Los dos **selectores de características** (*f_classif* y *mutual_info_classif*) presentan **diferentes scores** y seleccionan distintas variables, aunque coinciden en las características **N_Dias, Colesterol,  y triglicéridos**.  
 
-- Con **mutual_info_classif** la mayoría de las variables muestran un **score más representativo**, destacando las características **0, 1 y 9**.  
-  Con **f_classif** destacan las características **0, 4 y 10** como más relevantes.  
+- Con **mutual_info_classif** la mayoría de las variables muestran un **score más representativo**, destacando las características **N_Dias, Edad y Triglicéridos**.  
+  Con **f_classif** destacan las características **N_Dias, Colesterol,  y plaquetas** como más relevantes.  
 
 - Esta diferencia **no permite definir un conjunto único** de características para trabajar de forma confiable.  
   Por ello, se decide **modelar y observar el comportamiento** con las diferentes variables seleccionadas.
@@ -1398,7 +1398,6 @@ if cat_sel:
             st.markdown(
                 f"- Varianza objetivo: **{var_target_mca*100:.0f}%**  \n"
                 f"- Dimensiones usadas: **{n_dims_target}**  \n"
-                f"- Variables categóricas seleccionadas: **{len(cat_sel)}**"
             )
 else:
     st.info("Selecciona variables categóricas para ejecutar MCA.")
