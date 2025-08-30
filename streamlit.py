@@ -1962,3 +1962,14 @@ st.subheader("Análisis RFECV")
 st.markdown("""
 Se aplicó el método RFE (eliminación recursiva de características) con validación cruzada (CV) para la selección de variables, entrenando cuatro modelos: árboles de decisión, random forest, regresión logística y extra trees. Los resultados mostraron un buen desempeño en los modelos Extra Trees (0.948), Random Forest (0.946) y Decision Tree (0.922). Durante el proceso, cada modelo fue reduciendo progresivamente las variables hasta conservar 7, 6 y 3 características respectivamente, siendo este el enfoque que permitió la mayor reducción de características sin comprometer el rendimiento del modelo.
 """)
+
+
+st.header("Conclusión final:")
+
+st.markdown("""
+En el proceso de reducción de características se observó que, para las variables categóricas, la aplicación de Chi² e información mutua (posterior al OneHotEncoder) permitió reducirlas a 9. En el caso de las variables numéricas, los métodos ANOVA e información mutua no resultaron efectivos, ya que la reducción afectaba negativamente el desempeño de los modelos. Al combinar ambas selecciones (20 variables en total) y entrenar los modelos, el mejor rendimiento se obtuvo con HistGradientBoosting, alcanzando un accuracy de 0.9582.
+Por otro lado, mediante MCA y PCA se logró una reducción a 6 dimensiones y 8 componentes principales (14 características en total). Con este conjunto, los modelos con mejor desempeño fueron Random Forest (0.9036) y KNN (0.9041), ambos superando el 90% de accuracy.
+Finalmente, con la eliminación recursiva de características (RFECV) se consiguió la mayor reducción con el modelo Decision Tree, que conservó solo 3 variables con un accuracy de 0.922. Sin embargo, los modelos Random Forest (0.946) y Extra Trees (0.948) mostraron un mejor desempeño, aunque utilizando una mayor cantidad de características (6 y 7 respectivamente). Cabe destacar que el modelo HistGradientBoosting no fue entrenado porque no es compatible con esta técnica de selección.
+""")
+
+
