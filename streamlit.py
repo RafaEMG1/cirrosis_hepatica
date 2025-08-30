@@ -1213,23 +1213,27 @@ rs = RandomizedSearchCV(
     random_state=42
 )
 
-with st.spinner("⏳ Buscando mejores hiperparámetros..."):
-    rs.fit(X_train_15, y_train_15)
+try:
+    with st.spinner("⏳ Buscando mejores hiperparámetros..."):
+        rs.fit(X_train_15, y_train_15)
 
-# Resultados
-st.subheader("Mejores hiperparámetros encontrados")
-st.write(rs.best_params_)
-st.write(f"**Mejor Accuracy CV:** {rs.best_score_:.4f}")
+    # Resultados si todo sale bien
+    st.subheader("Mejores hiperparámetros encontrados")
+    st.write(rs.best_params_)
+    st.write(f"**Mejor Accuracy CV:** {rs.best_score_:.4f}")
 
-# Evaluación en Test
-best_model = rs.best_estimator_
-y_pred_15 = best_model.predict(X_test_15)
+    # Evaluación en Test
+    best_model = rs.best_estimator_
+    y_pred_15 = best_model.predict(X_test_15)
 
-st.markdown("### Evaluación en Test")
-st.write(f"**Accuracy Test:** {accuracy_score(y_test_15, y_pred_15):.4f}")
-st.text("📋 Classification Report:")
-st.text(classification_report(y_test_15, y_pred_15))
+    st.markdown("### Evaluación en Test")
+    st.write(f"**Accuracy Test:** {accuracy_score(y_test_15, y_pred_15):.4f}")
+    st.text("📋 Classification Report:")
+    st.text(classification_report(y_test_15, y_pred_15))
 
+except Exception as e:
+    st.error("⏰ Tiempo de procesamiento excedido o error en la ejecución. Por favor intente con otro modelo.")
+    st.write(f"Detalles técnicos: {str(e)}")
 
 def sec_tabla_completa():
     st.markdown("## 📊 Comparativa de Modelos con Métricas por Clase")
