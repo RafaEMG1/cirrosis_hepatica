@@ -1974,23 +1974,10 @@ st.markdown("""
 En el proceso de reducción de características se observó que, para las variables categóricas, la aplicación de Chi² e información mutua (posterior al OneHotEncoder) permitió reducirlas a 9. En el caso de las variables numéricas, los métodos ANOVA e información mutua no resultaron efectivos, ya que la reducción afectaba negativamente el desempeño de los modelos. Al combinar ambas selecciones (20 variables en total) y entrenar los modelos, el mejor rendimiento se obtuvo con HistGradientBoosting, alcanzando un accuracy de 0.9582.
 Por otro lado, mediante MCA y PCA se logró una reducción a 6 dimensiones y 8 componentes principales (14 características en total). Con este conjunto, los modelos con mejor desempeño fueron Random Forest (0.9036) y KNN (0.9041), ambos superando el 90% de accuracy.
 Finalmente, con la eliminación recursiva de características (RFECV) se consiguió la mayor reducción con el modelo Decision Tree, que conservó solo 3 variables con un accuracy de 0.922. Sin embargo, los modelos Random Forest (0.946) y Extra Trees (0.948) mostraron un mejor desempeño, aunque utilizando una mayor cantidad de características (6 y 7 respectivamente). Cabe destacar que el modelo HistGradientBoosting no fue entrenado porque no es compatible con esta técnica de selección.
+
+**HistGradientBoosting** se posiciona como el **mejor modelo** para la clasificación de etapas de cirrosis, al lograr el **mayor accuracy** tanto en validación cruzada (~96 %) como en prueba (~95–96 %), con una **brecha mínima** entre ambos que sugiere muy buena generalización.
 """)
 
 
-def conclusion_final():
-    st.subheader("🏁 Conclusión Final")
-    st.markdown("""
-**HistGradientBoosting** se posiciona como el **mejor modelo** para la clasificación de etapas de cirrosis, al lograr el **mayor accuracy** tanto en validación cruzada (~96 %) como en prueba (~95–96 %), con una **brecha mínima** entre ambos que sugiere **excelente generalización**; los **ensambles** basados en árboles (**Random Forest** y **ExtraTrees**) mantienen desempeños muy altos (>93–94 %) y métricas por clase (precisión, recall y F1) **equilibradas**, mientras que **KNN** ofrece un rendimiento sólido (~92–93 %) pero inferior a los ensambles, y **Logistic Regression** queda **rezagado** (<60 %), evidenciando que las fronteras del problema no son lineales. En conjunto, los resultados muestran que **los modelos de boosting** capturan mejor la estructura del dato, maximizan la exactitud sin sacrificar el balance por clase y son, por tanto, la **opción más robusta y confiable** para su despliegue en este caso de uso.
-""")
-
-    with st.expander("➡️ Recomendaciones inmediatas"):
-        st.markdown("""
-- **Seleccionar HGB como modelo final** y conservar **Random Forest** como baseline de respaldo.
-- **Verificar estabilidad** con una *StratifiedKFold* adicional y curva de aprendizaje para descartar sobreajuste sutil.
-- **Aumentar interpretabilidad** (importancias/SHAP) y evaluar **calibración** de probabilidades si habrá umbrales operativos.
-""")
-
-# Llama a la sección donde corresponda en tu app:
-conclusion_final()
 
 
