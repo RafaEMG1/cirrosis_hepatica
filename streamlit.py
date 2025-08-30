@@ -470,6 +470,53 @@ with g2:
     )
     st.altair_chart(hist_chart, use_container_width=True)
 
+
+
+st.subheader("Distribuciones Simétricas")
+st.markdown("""
+Las variables **Age**, **Albumin**, **Platelets** y **Prothrombin** presentan distribuciones cercanas a la forma de campana, 
+lo que indica una dispersión relativamente equilibrada alrededor de la media.  
+Aunque existe una ligera asimetría, la mayoría de los valores se concentran en torno a la mediana y la media, 
+sin presencia marcada de colas largas.
+""")
+
+st.subheader("Distribuciones con Sesgo a la Derecha (Asimetría Positiva)")
+st.markdown("""
+Las variables **Bilirubin**, **Cholesterol**, **Copper**, **Alk_Phos**, **SGOT**, **Triglycerides** y **N_Days** muestran 
+**asimetría positiva**, es decir, presentan una concentración de valores en la parte baja del rango y colas largas hacia la derecha.  
+Esto sugiere alta dispersión y la posible presencia de valores extremos (outliers), particularmente en variables bioquímicas:
+
+- **Bilirubin**: valores entre 0,3 y 28 mg/dL, media de 3,40 mg/dL  
+- **Cholesterol**: promedio de 372 mg/dL con máxima dispersión (DE ≈ 193,7), hasta 1775 mg/dL  
+- **Copper** y **Alk_Phos**: alta variabilidad, con Alk_Phos alcanzando 13862,4 U/L  
+- **SGOT**: valores entre 26,35 y 457,25 U/L, media de 123,17 U/L  
+- **Triglycerides**: promedio 123,82 mg/dL, con extremos hasta 598 mg/dL  
+""")
+
+st.subheader("Posibles Outliers Extremos")
+st.markdown("""
+Se identifican posibles valores atípicos en:
+
+- **Bilirubin**: > 20 mg/dL  
+- **Cholesterol**: > 1500 mg/dL  
+- **Alk_Phos**: > 10000 U/L  
+- **Copper**: > 500 µg/dL  
+- **SGOT**: > 400 U/L  
+
+Estos casos deben evaluarse para decidir si requieren tratamiento previo al modelado estadístico.
+""")
+
+st.subheader("Resumen de Variables Estables")
+st.markdown("""
+- **Albumin**: valores entre 1,96 y 4,64 g/dL, mediana 3,51 g/dL, baja dispersión  
+- **Platelets**: promedio 256 × 10³/µL, rango 62 a 721 × 10³/µL  
+- **Prothrombin**: media de 10,73 s, variación reducida (DE ≈ 0,90 s)  
+
+En conjunto, estas variables muestran un comportamiento más estable y menos afectado por valores extremos.
+""")
+
+
+
 # =========================
 # Matriz de Correlación (media pantalla)
 # =========================
@@ -510,50 +557,34 @@ with sns.plotting_context("notebook", font_scale=0.6):
 
 
 # ============================
-# Texto para análisis en Streamlit
+# Análisis de correlaciones en Streamlit
 # ============================
 
-st.header("1. Distribuciones Simétricas")
+st.subheader("Correlaciones Positivas Más Destacadas")
 st.markdown("""
-Las variables **Age**, **Albumin**, **Platelets** y **Prothrombin** presentan distribuciones cercanas a la forma de campana, 
-lo que indica una dispersión relativamente equilibrada alrededor de la media.  
-Aunque existe una ligera asimetría, la mayoría de los valores se concentran en torno a la mediana y la media, 
-sin presencia marcada de colas largas.
+- **Bilirubin y Copper:** 0.43 → Correlación positiva moderada; niveles más altos de bilirrubina tienden a coincidir con más cobre.  
+- **Bilirubin y SGOT:** 0.37  
+- **Bilirubin y Triglycerides:** 0.38 → Relaciones positivas moderadas.  
+- **Albumin y N_Days:** 0.37 → Mayor albúmina asociada con más días de seguimiento.  
+- **SGOT y Cholesterol:** 0.32  
+- **SGOT y Copper:** 0.28 → Ligera asociación de la enzima SGOT con colesterol y cobre.  
+- **Bilirubin y Cholesterol:** 0.34 → Relación positiva moderada.
 """)
 
-st.header("2. Distribuciones con Sesgo a la Derecha (Asimetría Positiva)")
+st.subheader("Correlaciones Negativas Relevantes")
 st.markdown("""
-Las variables **Bilirubin**, **Cholesterol**, **Copper**, **Alk_Phos**, **SGOT**, **Triglycerides** y **N_Days** muestran 
-**asimetría positiva**, es decir, presentan una concentración de valores en la parte baja del rango y colas largas hacia la derecha.  
-Esto sugiere alta dispersión y la posible presencia de valores extremos (outliers), particularmente en variables bioquímicas.
-
-- **Bilirubin**: valores entre 0,3 y 28 mg/dL, media de 3,40 mg/dL.  
-- **Cholesterol**: promedio de 372 mg/dL con máxima dispersión (DE ≈ 193,7), hasta 1775 mg/dL.  
-- **Copper** y **Alk_Phos**: alta variabilidad, con Alk_Phos alcanzando 13862,4 U/L.  
-- **SGOT**: valores entre 26,35 y 457,25 U/L, media de 123,17 U/L.  
-- **Triglycerides**: promedio 123,82 mg/dL, con extremos hasta 598 mg/dL.  
+- **Bilirubin y N_Days:** -0.39 → Mayor bilirrubina, menor tiempo de supervivencia/seguimiento.  
+- **Copper y N_Days:** -0.28 → Tendencia a menor tiempo de seguimiento con cobre alto.  
+- **Albumin y Bilirrubin:** -0.28 → Más bilirrubina asociada con menos albúmina, consistente con disfunción hepática.
 """)
 
-st.header("3. Posibles Outliers Extremos")
+st.subheader("Análisis General")
 st.markdown("""
-Se identifican posibles valores atípicos en:
+La **bilirrubina** es la variable con mayores correlaciones:  
+- Positivas moderadas con cobre, SGOT y colesterol  
+- Negativas con tiempo de seguimiento y albúmina  
 
-- **Bilirubin**: > 20 mg/dL  
-- **Cholesterol**: > 1500 mg/dL  
-- **Alk_Phos**: > 10000 U/L  
-- **Copper**: > 500 µg/dL  
-- **SGOT**: > 400 U/L  
-
-Estos casos deben evaluarse para decidir si requieren tratamiento previo al modelado estadístico.
-""")
-
-st.header("4. Resumen de Variables Estables")
-st.markdown("""
-- **Albumin**: valores entre 1,96 y 4,64 g/dL, mediana 3,51 g/dL, baja dispersión.  
-- **Platelets**: promedio 256 × 10³/µL, rango 62 a 721 × 10³/µL.  
-- **Prothrombin**: media de 10,73 s, variación reducida (DE ≈ 0,90 s).  
-
-En conjunto, estas variables muestran un comportamiento más estable y menos afectado por valores extremos.
+No se observan correlaciones fuertes (> 0.7), lo que sugiere que las variables pueden aportar **información complementaria** en futuros modelos.
 """)
 
 
