@@ -1298,10 +1298,10 @@ sec_tabla_completa()
 
 
 
-    st.subheader("📌 Conclusiones Parciales")
-    st.markdown("""
+st.subheader("📌 Conclusiones Parciales")
+st.markdown("""
 Con base en los resultados, se observa que los modelos simples como **Logistic Regression** quedan muy rezagados con un **accuracy** inferior al 60 %, mientras que **KNN** y **Decision Tree** logran entre el 90 % y 93 %. Los modelos de ensamble como **Random Forest** y **ExtraTrees** superan el 94 %, mostrando mejoras significativas frente a los modelos básicos. Sin embargo, el mejor desempeño lo alcanza **HistGradientBoosting**, con un **accuracy** cercano al 96 % en validación cruzada y prueba, además de métricas por clase (precisión, recall y F1-score) muy equilibradas, lo que evidencia **excelente capacidad de generalización** y lo posiciona como la alternativa más robusta y confiable para la clasificación multiclase en este problema.
-    """)
+""")
 
 
 
